@@ -1,0 +1,2 @@
+npx exec lint-staged
+npx run test
