@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   GoneException,
   Injectable,
@@ -8,12 +9,23 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { Role } from '../roles/entities/role.entity';
 import { User } from '../users/entities/user.entity';
+import { StorageService } from '../storage/storage.service';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './types/jwt.type';
+import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
+import { ChangeAdminPasswordDto } from './dto/change-admin-password.dto';
+
+type UploadedAvatarFile = {
+  originalname: string;
+  mimetype: string;
+  buffer: Buffer;
+  size: number;
+};
 
 @Injectable()
 export class AuthService {
@@ -24,6 +36,7 @@ export class AuthService {
     private readonly rolesRepository: Repository<Role>,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
+    private readonly storageService: StorageService,
   ) {}
 
   async loginAdmin(loginAdminDto: LoginAdminDto) {
@@ -146,6 +159,79 @@ export class AuthService {
 
     return {
       accountAdmin: this.serializeAdmin(accountAdmin),
+      role: this.serializeRole(role),
+    };
+  }
+
+  async updateAdminProfile(accountId: string, dto: UpdateAdminProfileDto) {
+    const accountAdmin = await this.findActiveAdminById(accountId);
+    accountAdmin.fullName = dto.fullName.trim();
+
+    const updated = await this.usersRepository.save(accountAdmin);
+    const role = await this.findRoleById(updated.roleId);
+
+    return {
+      accountAdmin: this.serializeAdmin(updated),
+      role: this.serializeRole(role),
+    };
+  }
+
+  async changeAdminPassword(accountId: string, dto: ChangeAdminPasswordDto) {
+    const accountAdmin = await this.findActiveAdminById(accountId);
+    const isMatch = await bcrypt.compare(
+      dto.currentPassword,
+      accountAdmin.password,
+    );
+
+    if (!isMatch) {
+      throw new UnauthorizedException({
+        code: 401,
+        message: 'Mật khẩu hiện tại không chính xác!',
+      });
+    }
+
+    accountAdmin.password = await bcrypt.hash(dto.newPassword, 10);
+    await this.usersRepository.save(accountAdmin);
+
+    return { isSuccess: true };
+  }
+
+  async uploadAdminAvatar(accountId: string, file?: UploadedAvatarFile) {
+    if (!file) {
+      throw new BadRequestException({
+        code: 400,
+        message: 'Vui lòng chọn ảnh đại diện!',
+      });
+    }
+
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException({
+        code: 400,
+        message: 'File tải lên phải là hình ảnh!',
+      });
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      throw new BadRequestException({
+        code: 400,
+        message: 'Ảnh đại diện không được vượt quá 2MB!',
+      });
+    }
+
+    const accountAdmin = await this.findActiveAdminById(accountId);
+    const extension = file.originalname.split('.').pop() || 'jpg';
+    const path = `admin-avatars/${accountId}/${randomUUID()}.${extension}`;
+    const bucket =
+      this.configService.get<string>('SUPABASE_STORAGE_BUCKET') ||
+      'kid-english';
+    const avatarUrl = await this.storageService.uploadFile(bucket, path, file);
+
+    accountAdmin.avatarUrl = avatarUrl;
+    const updated = await this.usersRepository.save(accountAdmin);
+    const role = await this.findRoleById(updated.roleId);
+
+    return {
+      accountAdmin: this.serializeAdmin(updated),
       role: this.serializeRole(role),
     };
   }

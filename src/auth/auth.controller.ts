@@ -2,14 +2,20 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { type Request, type Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginAdminDto } from './dto/login-admin.dto';
+import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
+import { ChangeAdminPasswordDto } from './dto/change-admin-password.dto';
 import { AdminAuthGuard } from './guards/admin-auth.guard';
 import { LoginRateLimitGuard } from './guards/login-rate-limit.guard';
 import {
@@ -17,6 +23,13 @@ import {
   parseCookies,
 } from '../common/utils/cookie.util';
 import type { AdminRequest } from './types/admin-request.type';
+
+type UploadedAvatarFile = {
+  originalname: string;
+  mimetype: string;
+  buffer: Buffer;
+  size: number;
+};
 
 @Controller('admin')
 export class AuthController {
@@ -92,6 +105,62 @@ export class AuthController {
       message: 'Lấy thông tin quản trị thành công!',
       accountAdmin: request.accountAdmin,
       role: request.accountAdminRole,
+    };
+  }
+
+  @Patch('me')
+  @UseGuards(AdminAuthGuard)
+  async updateMe(
+    @Req() request: AdminRequest,
+    @Body() updateAdminProfileDto: UpdateAdminProfileDto,
+  ) {
+    const result = await this.authService.updateAdminProfile(
+      request.accountAdmin?.id ?? '',
+      updateAdminProfileDto,
+    );
+
+    return {
+      code: 200,
+      message: 'Cập nhật hồ sơ thành công!',
+      accountAdmin: result.accountAdmin,
+      role: result.role,
+    };
+  }
+
+  @Patch('me/password')
+  @UseGuards(AdminAuthGuard)
+  async changePassword(
+    @Req() request: AdminRequest,
+    @Body() changeAdminPasswordDto: ChangeAdminPasswordDto,
+  ) {
+    await this.authService.changeAdminPassword(
+      request.accountAdmin?.id ?? '',
+      changeAdminPasswordDto,
+    );
+
+    return {
+      code: 200,
+      message: 'Đổi mật khẩu thành công!',
+    };
+  }
+
+  @Post('me/avatar')
+  @UseGuards(AdminAuthGuard)
+  @UseInterceptors(FileInterceptor('avatar'))
+  async uploadAvatar(
+    @Req() request: AdminRequest,
+    @UploadedFile() avatar: UploadedAvatarFile,
+  ) {
+    const result = await this.authService.uploadAdminAvatar(
+      request.accountAdmin?.id ?? '',
+      avatar,
+    );
+
+    return {
+      code: 200,
+      message: 'Cập nhật ảnh đại diện thành công!',
+      accountAdmin: result.accountAdmin,
+      role: result.role,
     };
   }
 
