@@ -62,6 +62,7 @@ import KeyvRedis from '@keyv/redis';
         url: configService.get<string>('POSTGRES_URI'),
         autoLoadEntities: true,
         synchronize: false,
+
         ssl: true,
         extra: {
           ssl: {

@@ -9,7 +9,6 @@ import { UserVocabularyProgress } from './entities/user-vocabulary-progress.enti
 import { UserStatistics } from './entities/user-statistics.entity';
 import { ProgressService } from './progress.service';
 import { GamificationService } from './gamification.service';
-
 @Module({
   imports: [
     TypeOrmModule.forFeature([

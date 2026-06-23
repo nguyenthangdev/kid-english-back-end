@@ -7,7 +7,6 @@ import { QuotesService } from './quotes.service';
 import { QuotesController } from './quotes.controller';
 import { AdminQuoteController } from './admin-quote/admin-quote.controller';
 import { DailyQuoteService } from './daily-quote.service';
-
 @Module({
   imports: [
     TypeOrmModule.forFeature([Quote, DailyQuote]),

@@ -5,6 +5,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import helmet from 'helmet';
+import { ConfigService } from '@nestjs/config';
+import cookieParser from 'cookie-parser';
+import { config } from 'process';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,18 +15,19 @@ async function bootstrap() {
   // ── Security headers ──────────────────────────────────────────────────────
   app.use(helmet());
 
-  // ── CORS ─────────────────────────────────────────────────────────────────
-  const feUrl = process.env.FE_URL;
+  // ── Global Validation Pipe ────────────────────────────────────────────────
+  const configService = app.get(ConfigService);
+  const clientUrl = configService.get<string>('CLIENT_URL');
+
   app.enableCors({
-    origin: feUrl && feUrl.length > 0 ? feUrl : true,
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: [clientUrl],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control'],
   });
 
-  // // ── Global API prefix ─────────────────────────────────────────────────────
-  // app.setGlobalPrefix('api/v1');
+  app.use(cookieParser());
 
-  // ── Global Validation Pipe ────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -54,12 +58,11 @@ async function bootstrap() {
     SwaggerModule.setup('docs', app, document, {
       swaggerOptions: { persistAuthorization: true },
     });
-
-    const port = process.env.PORT ?? 3000;
+    const port = configService.get<number>('PORT');
     console.log(`📖 Swagger UI: http://localhost:${port}/docs`);
   }
 
-  const port = process.env.PORT ?? 3000;
+  const port = configService.get<number>('PORT');
   await app.listen(port);
   console.log(`🚀 Application running on: http://localhost:${port}/api`);
 }
