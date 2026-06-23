@@ -26,4 +26,7 @@ export class Tag extends BaseEntity {
 
   @OneToMany(() => Quote, (quote) => quote.tag)
   quotes: Quote[];
+
+  @Column({ name: 'is_deleted', type: 'boolean', default: false })
+  isDeleted: boolean;
 }

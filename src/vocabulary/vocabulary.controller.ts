@@ -1,34 +1,31 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { VocabularyService } from './vocabulary.service';
-import { CreateVocabularyDto } from './dto/create-vocabulary.dto';
-import { UpdateVocabularyDto } from './dto/update-vocabulary.dto';
+import { VocabularyQueryDto } from './dto/vocabulary-query.dto';
 
-@Controller('vocabulary')
+@ApiTags('Vocabularies')
+@Controller('vocabularies')
 export class VocabularyController {
   constructor(private readonly vocabularyService: VocabularyService) {}
 
-  @Post()
-  create(@Body() createVocabularyDto: CreateVocabularyDto) {
-    return this.vocabularyService.create(createVocabularyDto);
-  }
-
   @Get()
-  findAll() {
-    return this.vocabularyService.findAll();
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'List vocabularies with cursor-based pagination' })
+  listVocabularies(@Query() query: VocabularyQueryDto) {
+    return this.vocabularyService.listVocabularies(query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.vocabularyService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateVocabularyDto: UpdateVocabularyDto) {
-    return this.vocabularyService.update(+id, updateVocabularyDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.vocabularyService.remove(+id);
+  @ApiOperation({ summary: 'Get a single vocabulary by ID' })
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.vocabularyService.findById(id);
   }
 }
