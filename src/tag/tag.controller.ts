@@ -1,34 +1,53 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Delete,
+  Query,
+  HttpCode,
+  HttpStatus,
+  ParseUUIDPipe,
+} from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { TagService } from './tag.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
+import { TagType } from '../common/constants/enums';
 
-@Controller('tag')
+@ApiTags('Tags')
+@Controller('tags')
 export class TagController {
-  constructor(private readonly tagService: TagService) {}
+  constructor(private readonly tagsService: TagService) {}
 
   @Post()
-  create(@Body() createTagDto: CreateTagDto) {
-    return this.tagService.create(createTagDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.tagService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.tagService.findOne(+id);
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new tag (Admin only)' })
+  createTag(@Body() createTagDto: CreateTagDto) {
+    return this.tagsService.createTag(createTagDto);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTagDto: UpdateTagDto) {
-    return this.tagService.update(+id, updateTagDto);
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update a tag (Admin only)' })
+  updateTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateTagDto: UpdateTagDto,
+  ) {
+    return this.tagsService.updateTag(id, updateTagDto);
+  }
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  getTags(@Query('type') type?: TagType) {
+    return this.tagsService.getTags(type);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.tagService.remove(+id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteTag(@Param('id', ParseUUIDPipe) id: string) {
+    return this.tagsService.deleteTag(id);
   }
 }

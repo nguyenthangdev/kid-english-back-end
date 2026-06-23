@@ -10,20 +10,56 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { RolesModule } from './roles/roles.module';
 import { TagModule } from './tag/tag.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { CacheModule } from '@nestjs/cache-manager';
+import { APP_GUARD } from '@nestjs/core';
+import { envValidationSchema } from './config/env.config';
+import databaseConfig from './config/database.config';
+import jwtConfig from './config/jwt.config';
+import { StorageModule } from './storage/storage.module';
+import KeyvRedis from '@keyv/redis';
+
 @Module({
   imports: [
-    // 1. Đăng ký ConfigModule đầu tiên
+    // ── Config (global, with Joi validation) ───────────────────────────────
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: envValidationSchema,
+      load: [databaseConfig, jwtConfig],
     }),
 
-    // 2. Dùng forRootAsync thay vì forRoot
+    // ── Rate Limiting ──────────────────────────────────────────────────────
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => [
+        {
+          ttl: configService.get<number>('THROTTLE_TTL', 600000),
+          limit: configService.get<number>('THROTTLE_LIMIT', 100),
+        },
+      ],
+    }),
+
+    // ── Global Cache (Redis) ──────────────────────────────────────────────
+    CacheModule.registerAsync({
+      isGlobal: true,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        stores: [
+          new KeyvRedis(
+            configService.get<string>('REDIS_URL', 'redis://localhost:6379'),
+          ),
+        ],
+        ttl: 3600000, // 1 hour default TTL in ms
+      }),
+    }),
+
+    // ── Database ───────────────────────────────────────────────────────────
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        url: configService.get<string>('POSTGRES_URI'), // Lấy link qua ConfigService
+        url: configService.get<string>('POSTGRES_URI'),
         autoLoadEntities: true,
         synchronize: false,
         ssl: true,
@@ -35,15 +71,24 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
     }),
 
-    UsersModule,
+    // ── Feature Modules ────────────────────────────────────────────────────
+    StorageModule,
     AuthModule,
-    HomeModule,
-    VocabularyModule,
-    QuotesModule,
+    UsersModule,
     RolesModule,
     TagModule,
+    VocabularyModule,
+    QuotesModule,
+    HomeModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Global rate-limit guard
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

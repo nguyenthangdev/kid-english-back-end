@@ -1,33 +1,67 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-// import { LoggingMiddleware } from './middleware/logging/logging.middleware';
 import { ValidationPipe } from '@nestjs/common';
+import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // app.use(new LoggingMiddleware().use);
-  // Định nghĩa cấu hình cho tài liệu Swagger (Cây thư mục, Tên dự án, Phiên bản)
+
+  // ── Security headers ──────────────────────────────────────────────────────
+  app.use(helmet());
+
+  // ── CORS ─────────────────────────────────────────────────────────────────
+  const feUrl = process.env.FE_URL;
+  app.enableCors({
+    origin: feUrl && feUrl.length > 0 ? feUrl : true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  });
+
+  // // ── Global API prefix ─────────────────────────────────────────────────────
+  // app.setGlobalPrefix('api/v1');
+
+  // ── Global Validation Pipe ────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
-      transform: true, // BẬT cho phép class-transformer hoạt động
-      whitelist: true, // Tự động vứt bỏ các trường dữ liệu rác mà Frontend cố tình nhét thêm vào
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
     }),
   );
-  const config = new DocumentBuilder()
-    .setTitle('Dự án NestJS đầu tiên của tôi')
-    .setDescription('Tài liệu hướng dẫn sử dụng API chi tiết cho Frontend')
-    .setVersion('1.0')
-    .addBearerAuth() // Thêm dòng này nếu sau này bạn làm tính năng Đăng nhập bằng JWT Token
-    .build();
 
-  // Khởi tạo tài liệu Swagger dựa trên cấu hình trên
-  const document = SwaggerModule.createDocument(app, config);
+  // ── Global Exception Filter ───────────────────────────────────────────────
+  app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
-  // Thiết lập đường dẫn để truy cập giao diện Swagger UI (Ở đây mình đặt là 'api')
-  SwaggerModule.setup('api', app, document);
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`Ứng dụng đang chạy tại: http://localhost:3000`);
-  console.log(`Xem tài liệu API tại: http://localhost:3000/api`);
+  // ── Global Transform Interceptor ──────────────────────────────────────────
+  app.useGlobalInterceptors(new TransformInterceptor());
+
+  // ── Swagger (dev only) ────────────────────────────────────────────────────
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('KidEnglish API')
+      .setDescription('Backend API for the KidEnglish application')
+      .setVersion('1.0')
+      .addBearerAuth(
+        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        'access-token',
+      )
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, document, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+
+    const port = process.env.PORT ?? 3000;
+    console.log(`📖 Swagger UI: http://localhost:${port}/docs`);
+  }
+
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`🚀 Application running on: http://localhost:${port}/api`);
 }
-bootstrap();
+
+void bootstrap();

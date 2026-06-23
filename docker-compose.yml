@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: kid_english_postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: ${DB_USER:-user_kid_english}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-password_kid_english}
+  #     POSTGRES_DB: ${DB_NAME:-db_kid_english}
+  #   ports:
+  #     - '${DB_PORT:-5433}:5432'
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-user_kid_english}']
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: kid_english_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

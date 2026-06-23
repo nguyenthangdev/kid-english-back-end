@@ -9,7 +9,9 @@ describe('AdminVocabularyController', () => {
       controllers: [AdminVocabularyController],
     }).compile();
 
-    controller = module.get<AdminVocabularyController>(AdminVocabularyController);
+    controller = module.get<AdminVocabularyController>(
+      AdminVocabularyController,
+    );
   });
 
   it('should be defined', () => {
