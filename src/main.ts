@@ -3,11 +3,27 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 // import { LoggingMiddleware } from './middleware/logging/logging.middleware';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  const configService = app.get(ConfigService);
+  const clientUrl = configService.get<string>('CLIENT_URL');
+  const port = configService.get<number>('PORT') || 3000;
+
+  app.enableCors({
+    origin: [clientUrl],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control'],
+  });
+
+  app.use(cookieParser());
   // app.use(new LoggingMiddleware().use);
   // Định nghĩa cấu hình cho tài liệu Swagger (Cây thư mục, Tên dự án, Phiên bản)
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true, // BẬT cho phép class-transformer hoạt động
@@ -21,10 +37,8 @@ async function bootstrap() {
     .addBearerAuth() // Thêm dòng này nếu sau này bạn làm tính năng Đăng nhập bằng JWT Token
     .build();
 
-  // Khởi tạo tài liệu Swagger dựa trên cấu hình trên
   const document = SwaggerModule.createDocument(app, config);
 
-  // Thiết lập đường dẫn để truy cập giao diện Swagger UI (Ở đây mình đặt là 'api')
   SwaggerModule.setup('api', app, document);
   await app.listen(process.env.PORT ?? 3000);
   console.log(`Ứng dụng đang chạy tại: http://localhost:3000`);
