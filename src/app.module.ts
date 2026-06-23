@@ -12,12 +12,10 @@ import { TagModule } from './tag/tag.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 @Module({
   imports: [
-    // 1. Đăng ký ConfigModule đầu tiên
     ConfigModule.forRoot({
-      isGlobal: true,
+      isGlobal: true, // cho phép dùng được ConfigService ở toàn cục từ đó Dùng DI đế lấy ra biến môi trường trong .env
     }),
 
-    // 2. Dùng forRootAsync thay vì forRoot
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -26,6 +24,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         url: configService.get<string>('POSTGRES_URI'), // Lấy link qua ConfigService
         autoLoadEntities: true,
         synchronize: false,
+
         ssl: true,
         extra: {
           ssl: {
