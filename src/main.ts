@@ -36,11 +36,11 @@ async function bootstrap() {
     }),
   );
 
-  // ── Global Exception Filter ───────────────────────────────────────────────
-  app.useGlobalFilters(new GlobalHttpExceptionFilter());
+  // // ── Global Exception Filter ───────────────────────────────────────────────
+  // app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
-  // ── Global Transform Interceptor ──────────────────────────────────────────
-  app.useGlobalInterceptors(new TransformInterceptor());
+  // // ── Global Transform Interceptor ──────────────────────────────────────────
+  // app.useGlobalInterceptors(new TransformInterceptor());
 
   // ── Swagger (dev only) ────────────────────────────────────────────────────
   if (process.env.NODE_ENV !== 'production') {
@@ -62,7 +62,7 @@ async function bootstrap() {
     console.log(`📖 Swagger UI: http://localhost:${port}/docs`);
   }
 
-  const port = configService.get<number>('PORT');
+  const port = configService.get<number>('PORT') ?? 3000;
   await app.listen(port);
   console.log(`🚀 Application running on: http://localhost:${port}/api`);
 }
