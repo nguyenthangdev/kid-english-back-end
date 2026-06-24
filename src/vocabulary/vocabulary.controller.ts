@@ -10,7 +10,6 @@ import {
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { VocabularyService } from './vocabulary.service';
 import { VocabularyQueryDto } from './dto/vocabulary-query.dto';
-
 @ApiTags('Vocabularies')
 @Controller('vocabularies')
 export class VocabularyController {

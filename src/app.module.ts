@@ -18,6 +18,7 @@ import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { StorageModule } from './storage/storage.module';
 import KeyvRedis from '@keyv/redis';
+import { RolesGuard } from './common/guards/roles.guard';
 
 @Module({
   imports: [
@@ -89,6 +90,10 @@ import KeyvRedis from '@keyv/redis';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })

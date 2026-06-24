@@ -36,10 +36,10 @@ async function bootstrap() {
     }),
   );
 
-  // // ── Global Exception Filter ───────────────────────────────────────────────
+  // ── Global Exception Filter ───────────────────────────────────────────────
   // app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
-  // // ── Global Transform Interceptor ──────────────────────────────────────────
+  // ── Global Transform Interceptor ──────────────────────────────────────────
   // app.useGlobalInterceptors(new TransformInterceptor());
 
   // ── Swagger (dev only) ────────────────────────────────────────────────────

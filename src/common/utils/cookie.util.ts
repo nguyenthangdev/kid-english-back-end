@@ -1,7 +1,9 @@
 import { CookieOptions } from 'express';
 import ms from 'ms';
 
-export const getAuthCookieOptions = (time: '1h' | '14d'): CookieOptions => {
+export const getAuthCookieOptions = (
+  time: '1h' | '14d' | '7d' | '30d',
+): CookieOptions => {
   const maxAge = ms(time);
 
   return {
