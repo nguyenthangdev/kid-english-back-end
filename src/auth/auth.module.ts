@@ -20,12 +20,14 @@ import { JwtUserAuthGuard } from './guards/jwt-user-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginRateLimitGuard } from './guards/login-rate-limit.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Role]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({}),
+    StorageModule,
   ],
   controllers: [AuthController, UserAuthController],
   providers: [
