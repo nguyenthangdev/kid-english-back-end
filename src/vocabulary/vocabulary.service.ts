@@ -1,12 +1,6 @@
-import {
-  Injectable,
-  Inject,
-  Logger,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { Vocabulary } from './entities/vocabulary.entity';
@@ -23,7 +17,9 @@ export interface CursorPaginatedResult<T> {
 @Injectable()
 export class VocabularyService {
   private readonly logger = new Logger(VocabularyService.name);
+
   private readonly CACHE_PREFIX = 'vocab:list';
+  private readonly CACHE_VERSION_KEY = 'vocab:cache_version';
 
   constructor(
     @InjectRepository(Vocabulary)
@@ -32,15 +28,23 @@ export class VocabularyService {
     private readonly cacheManager: Cache,
   ) {}
 
-  /**
-   * Cursor-based paginated list of vocabularies.
-   * Cursor = last returned vocabulary ID.
-   */
+  private async getCacheVersion(): Promise<number> {
+    let version = await this.cacheManager.get<number>(this.CACHE_VERSION_KEY);
+    if (!version) {
+      version = Date.now();
+      await this.cacheManager.set(this.CACHE_VERSION_KEY, version, 0);
+    }
+    return version;
+  }
+
   async listVocabularies(
     query: VocabularyQueryDto,
   ): Promise<CursorPaginatedResult<Vocabulary>> {
     const { tagId, cursor, limit = 20 } = query;
-    const cacheKey = `${this.CACHE_PREFIX}:${tagId ?? 'all'}:${cursor ?? 'start'}:${limit}`;
+
+    // 1. Nhúng Version vào Cache Key
+    const version = await this.getCacheVersion();
+    const cacheKey = `${this.CACHE_PREFIX}:v${version}:${tagId ?? 'all'}:${cursor ?? 'start'}:${limit}`;
 
     const cached =
       await this.cacheManager.get<CursorPaginatedResult<Vocabulary>>(cacheKey);
@@ -51,7 +55,9 @@ export class VocabularyService {
 
     const qb = this.vocabularyRepository
       .createQueryBuilder('vocab')
-      .leftJoinAndSelect('vocab.tag', 'tag')
+      // FIX OVERFETCHING: Chỉ lấy những trường UI thực sự cần từ bảng Tag
+      .leftJoin('vocab.tag', 'tag')
+      .addSelect(['tag.id', 'tag.name', 'tag.colorCode', 'tag.slug'])
       .where('vocab.isDeleted = :isDeleted', { isDeleted: false });
 
     if (tagId) {
@@ -59,21 +65,23 @@ export class VocabularyService {
     }
 
     if (cursor) {
-      // Cursor pagination: fetch records where created_at is older than cursor item
       const cursorItem = await this.vocabularyRepository.findOne({
         where: { id: cursor },
-        select: { createdAt: true },
+        select: { id: true, createdAt: true },
       });
+
       if (cursorItem) {
-        qb.andWhere('vocab.createdAt < :cursorDate', {
-          cursorDate: cursorItem.createdAt,
-        });
+        qb.andWhere(
+          '(vocab.createdAt < :cursorDate OR (vocab.createdAt = :cursorDate AND vocab.id < :cursorId))',
+          { cursorDate: cursorItem.createdAt, cursorId: cursorItem.id },
+        );
       }
     }
 
-    // Fetch limit+1 to determine hasMore
+    // Luôn sắp xếp bằng 2 cột tương ứng với logic Where ở trên
     const items = await qb
       .orderBy('vocab.createdAt', 'DESC')
+      .addOrderBy('vocab.id', 'DESC')
       .take(limit + 1)
       .getMany();
 
@@ -86,7 +94,10 @@ export class VocabularyService {
       nextCursor,
       hasMore,
     };
+
+    // TTL 1 giờ. Khi có version mới, key này sẽ bị "bỏ rơi" và Redis sẽ tự dọn rác khi hết giờ.
     await this.cacheManager.set(cacheKey, result, 3600000);
+
     return result;
   }
 
@@ -96,7 +107,7 @@ export class VocabularyService {
       relations: { tag: true },
     });
     if (!vocab) {
-      throw new NotFoundException(`Vocabulary with ID "${id}" not found`);
+      throw new NotFoundException(`Không tìm thấy từ vựng với ID "${id}"`);
     }
     return vocab;
   }
@@ -104,7 +115,7 @@ export class VocabularyService {
   async create(dto: CreateVocabularyDto): Promise<Vocabulary> {
     const vocab = this.vocabularyRepository.create(dto);
     const saved = await this.vocabularyRepository.save(vocab);
-    await this.clearCaches();
+    await this.invalidateCaches();
     this.logger.log(`Created vocabulary: ${saved.word}`);
     return saved;
   }
@@ -113,7 +124,7 @@ export class VocabularyService {
     const vocab = await this.findById(id);
     Object.assign(vocab, dto);
     const updated = await this.vocabularyRepository.save(vocab);
-    await this.clearCaches();
+    await this.invalidateCaches();
     this.logger.log(`Updated vocabulary: ${updated.word}`);
     return updated;
   }
@@ -122,15 +133,18 @@ export class VocabularyService {
     const vocab = await this.findById(id);
     vocab.isDeleted = true;
     await this.vocabularyRepository.save(vocab);
-    await this.clearCaches();
+    await this.invalidateCaches();
     this.logger.log(`Soft-deleted vocabulary: ${vocab.word}`);
   }
 
-  private async clearCaches(): Promise<void> {
-    // cache-manager v7 with Redis: iterate known prefixes
-    // In production consider using redis SCAN or tagged invalidation
+  private async invalidateCaches(): Promise<void> {
+    const newVersion = Date.now();
+
+    // Ghi đè version mới. Lập tức mọi Cache Key List cũ trở nên "vô hình" với request mới.
+    await this.cacheManager.set(this.CACHE_VERSION_KEY, newVersion, 0);
+
     this.logger.log(
-      'Vocabulary caches cleared (new writes invalidate via TTL)',
+      `[Cache Invalidated] Đã nâng version namespace lên v${newVersion}. Hệ thống đồng bộ toàn cục.`,
     );
   }
 }

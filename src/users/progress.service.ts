@@ -9,9 +9,7 @@ import { ProgressStatus } from '../common/constants/enums';
 export class ProgressService {
   private readonly logger = new Logger(ProgressService.name);
 
-  constructor(
-    private readonly dataSource: DataSource,
-  ) {}
+  constructor(private readonly dataSource: DataSource) {}
 
   /**
    * Idempotent UPSERT: mark a vocabulary as learned for a user.

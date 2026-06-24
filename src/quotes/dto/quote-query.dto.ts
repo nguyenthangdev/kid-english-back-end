@@ -8,7 +8,9 @@ export class QuoteQueryDto {
   @IsOptional()
   tagId?: string;
 
-  @ApiPropertyOptional({ description: 'Cursor: last quote ID from previous page' })
+  @ApiPropertyOptional({
+    description: 'Cursor: last quote ID from previous page',
+  })
   @IsUUID()
   @IsOptional()
   cursor?: string;
