@@ -13,12 +13,17 @@ export const envValidationSchema = Joi.object({
 
   // Database
   POSTGRES_URI: Joi.string().required(),
-  // Auth
-  JWT_SECRET: Joi.string().min(16).required(),
-  JWT_RESET_SECRET: Joi.string().min(16).required(),
+
+  // ── Admin Auth JWT ────────────────────────────────────────────────────────
+  JWT_ACCESS_TOKEN_SECRET_ADMIN: Joi.string().min(16).required(),
+  JWT_REFRESH_TOKEN_SECRET_ADMIN: Joi.string().min(16).required(),
+
+  // ── User Auth JWT ─────────────────────────────────────────────────────────
+  JWT_ACCESS_TOKEN_SECRET_USER: Joi.string().min(16).required(),
+  JWT_REFRESH_TOKEN_SECRET_USER: Joi.string().min(16).required(),
 
   // CORS
-  FE_URL: Joi.string().uri().allow('').default(''),
+  CLIENT_URL: Joi.string().uri().allow('').default(''),
 
   // Rate limiting
   THROTTLE_TTL: Joi.number().default(600000),
