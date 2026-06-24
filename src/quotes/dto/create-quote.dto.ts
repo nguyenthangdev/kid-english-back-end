@@ -9,12 +9,16 @@ import {
 } from 'class-validator';
 
 export class CreateQuoteDto {
-  @ApiProperty({ example: 'The only way to do great work is to love what you do.' })
+  @ApiProperty({
+    example: 'The only way to do great work is to love what you do.',
+  })
   @IsString()
   @IsNotEmpty()
   contentEn: string;
 
-  @ApiProperty({ example: 'Cách duy nhất để làm việc tốt là yêu thích những gì bạn làm.' })
+  @ApiProperty({
+    example: 'Cách duy nhất để làm việc tốt là yêu thích những gì bạn làm.',
+  })
   @IsString()
   @IsNotEmpty()
   contentVn: string;

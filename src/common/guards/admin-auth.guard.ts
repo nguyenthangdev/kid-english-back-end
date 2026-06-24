@@ -4,9 +4,9 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AuthService } from '../auth.service';
+import { AuthService } from '../../auth/auth.service';
 import { AdminRequest } from '../types/admin-request.type';
-import { parseCookies } from '../../common/utils/cookie.util';
+import { parseCookies } from '../utils/cookie.util';
 
 @Injectable()
 export class AdminAuthGuard implements CanActivate {

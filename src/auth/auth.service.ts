@@ -16,16 +16,10 @@ import { User } from '../users/entities/user.entity';
 import { StorageService } from '../storage/storage.service';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { JwtService } from '@nestjs/jwt';
-import { JwtPayload } from './types/jwt.type';
+import { JwtPayload } from '../common/types/jwt.type';
 import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
 import { ChangeAdminPasswordDto } from './dto/change-admin-password.dto';
-
-type UploadedAvatarFile = {
-  originalname: string;
-  mimetype: string;
-  buffer: Buffer;
-  size: number;
-};
+import { UploadedImageFile } from '../common/types/upload.type';
 
 @Injectable()
 export class AuthService {
@@ -196,7 +190,7 @@ export class AuthService {
     return { isSuccess: true };
   }
 
-  async uploadAdminAvatar(accountId: string, file?: UploadedAvatarFile) {
+  async uploadAdminAvatar(accountId: string, file?: UploadedImageFile) {
     if (!file) {
       throw new BadRequestException({
         code: 400,

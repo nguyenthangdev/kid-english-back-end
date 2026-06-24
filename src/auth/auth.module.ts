@@ -4,8 +4,8 @@ import { Role } from '../roles/entities/role.entity';
 import { User } from '../users/entities/user.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { AdminAuthGuard } from './guards/admin-auth.guard';
-import { LoginRateLimitGuard } from './guards/login-rate-limit.guard';
+import { AdminAuthGuard } from '../common/guards/admin-auth.guard';
+import { LoginRateLimitGuard } from '../common/guards/login-rate-limit.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { StorageModule } from '../storage/storage.module';
 
