@@ -7,7 +7,7 @@ import { Quote } from './entities/quote.entity';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { QuoteQueryDto } from './dto/quote-query.dto';
-import { CursorPaginatedResult } from '../vocabulary/vocabulary.service';
+import { CursorPaginatedResult } from '../common/types/pagination.type';
 
 @Injectable()
 export class QuotesService {

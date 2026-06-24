@@ -23,6 +23,9 @@ export class Vocabulary extends BaseEntity {
   @Column({ name: 'is_deleted', type: 'boolean', default: false })
   isDeleted: boolean;
 
+  @Column({ name: 'search_text', type: 'varchar', nullable: true })
+  searchText: string;
+
   @ManyToOne(() => Tag, (tag) => tag.vocabularies)
   @JoinColumn({ name: 'tag_id' })
   tag: Tag;

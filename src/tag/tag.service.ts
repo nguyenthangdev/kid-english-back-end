@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm';
+import { Repository, Not, Brackets } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import slugify from 'slugify';
@@ -14,6 +14,8 @@ import { Tag } from './entities/tag.entity';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
 import { TagType } from '../common/constants/enums';
+import { TagQueryDto } from './dto/tag-query.dto';
+import { CursorPaginatedResult } from '../common/types/pagination.type';
 
 @Injectable()
 export class TagService {
@@ -27,17 +29,17 @@ export class TagService {
     private readonly cacheManager: Cache,
   ) {}
 
-  async getTags(type?: TagType): Promise<Tag[]> {
-    const cacheKey = type
-      ? `${this.CACHE_KEY_PREFIX}:${type}`
-      : this.CACHE_KEY_PREFIX;
+  async getTags(queryDto: TagQueryDto): Promise<CursorPaginatedResult<Tag>> {
+    // const cacheKey = type
+    //   ? `${this.CACHE_KEY_PREFIX}:${type}`
+    //   : this.CACHE_KEY_PREFIX;
 
-    const cachedTags = await this.cacheManager.get<Tag[]>(cacheKey);
-    if (cachedTags) {
-      this.logger.debug(`Hit cache for key: ${cacheKey}`);
-      return cachedTags;
-    }
-
+    // const cachedTags = await this.cacheManager.get<Tag[]>(cacheKey);
+    // if (cachedTags) {
+    //   this.logger.debug(`Hit cache for key: ${cacheKey}`);
+    //   return cachedTags;
+    // }
+    const { type, keyword, cursor, limit = 10 } = queryDto;
     const query = this.tagRepository.createQueryBuilder('tag');
     // Chỉ lấy những tag chưa bị xóa mềm
     query.where('tag.isDeleted = :isDeleted', { isDeleted: false });
@@ -46,10 +48,49 @@ export class TagService {
       query.andWhere('tag.type = :type', { type });
     }
 
-    const tags = await query.orderBy('tag.name', 'ASC').getMany();
+    if (keyword) {
+      const cleanKeyword = keyword.trim();
+      // Chuyển keyword thành slug để tìm không dấu (VD: "Gia đình" -> "gia-dinh")
+      const slugKeyword = slugify(cleanKeyword, {
+        lower: true,
+        strict: true,
+        locale: 'vi',
+      });
 
-    await this.cacheManager.set(cacheKey, tags, 3600);
-    return tags;
+      query.andWhere(
+        new Brackets((qbInner) => {
+          qbInner
+            .where('tag.name ILIKE :clean', { clean: `%${cleanKeyword}%` })
+            .orWhere('tag.slug ILIKE :slug', { slug: `%${slugKeyword}%` });
+        }),
+      );
+    }
+    if (cursor) {
+      const cursorItem = await this.tagRepository.findOne({
+        where: { id: cursor },
+        select: { createdAt: true },
+      });
+      if (cursorItem) {
+        query.andWhere('tag.createdAt < :cursorDate', {
+          cursorDate: cursorItem.createdAt,
+        });
+      }
+    }
+    const items = await query
+      .orderBy('tag.createdAt', 'DESC')
+      .take(limit + 1)
+      .getMany();
+
+    const hasMore = items.length > limit;
+    const data = hasMore ? items.slice(0, limit) : items;
+    const nextCursor = hasMore ? (data[data.length - 1]?.id ?? null) : null;
+    // await this.cacheManager.set(cacheKey, tags, 3600);
+
+    return {
+      data,
+      nextCursor,
+      hasMore,
+    };
   }
 
   async createTag(createTagDto: CreateTagDto): Promise<Tag> {
@@ -72,7 +113,7 @@ export class TagService {
     });
 
     const savedTag = await this.tagRepository.save(newTag);
-    await this.clearTagCaches();
+    // await this.clearTagCaches();
 
     return savedTag;
   }
@@ -113,7 +154,7 @@ export class TagService {
     });
 
     const updatedTag = await this.tagRepository.save(tag);
-    await this.clearTagCaches();
+    // await this.clearTagCaches();
 
     return updatedTag;
   }
@@ -128,7 +169,7 @@ export class TagService {
 
     tag.isDeleted = true;
     await this.tagRepository.save(tag);
-    await this.clearTagCaches();
+    // await this.clearTagCaches();
   }
 
   private async clearTagCaches(): Promise<void> {

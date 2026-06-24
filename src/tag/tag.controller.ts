@@ -16,9 +16,10 @@ import { TagService } from './tag.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
 import { TagType } from '../common/constants/enums';
+import { TagQueryDto } from './dto/tag-query.dto';
 
 @ApiTags('Tags')
-@Controller('tags')
+@Controller('admin/tags')
 export class TagController {
   constructor(private readonly tagsService: TagService) {}
 
@@ -39,10 +40,16 @@ export class TagController {
     return this.tagsService.updateTag(id, updateTagDto);
   }
 
+  // @Get()
+  // @HttpCode(HttpStatus.OK)
+  // getTags(@Query('type') type?: TagType) {
+  //   return this.tagsService.getTags(type);
+  // }
   @Get()
   @HttpCode(HttpStatus.OK)
-  getTags(@Query('type') type?: TagType) {
-    return this.tagsService.getTags(type);
+  @ApiOperation({ summary: 'Get tags with cursor pagination and search' })
+  getTags(@Query() queryDto: TagQueryDto) {
+    return this.tagsService.getTags(queryDto);
   }
 
   @Delete(':id')

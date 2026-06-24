@@ -25,14 +25,14 @@ import {
 import { UserAuthService } from './user-auth.service';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { LoginRateLimitGuard } from './guards/login-rate-limit.guard';
-import { JwtUserAuthGuard } from './guards/jwt-user-auth.guard';
+import { LoginRateLimitGuard } from '../common/guards/login-rate-limit.guard';
+import { JwtUserAuthGuard } from '../common/guards/jwt-user-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {
   getAuthCookieOptions,
   parseCookies,
 } from '../common/utils/cookie.util';
-import type { AuthenticatedUser } from './types/user-request.type';
+import type { AuthenticatedUser } from '../common/types/user-request.type';
 
 @ApiTags('User - Auth')
 @Controller('user/auth')

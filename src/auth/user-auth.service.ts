@@ -17,7 +17,7 @@ import { UserStreak } from '../users/entities/user-streak.entity';
 import { UserStatistics } from '../users/entities/user-statistics.entity';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { JwtPayload } from './types/jwt.type';
+import { JwtPayload } from '../common/types/jwt.type';
 
 const DEFAULT_USER_ROLE = 'STUDENT';
 const BCRYPT_ROUNDS = 12;
@@ -36,7 +36,7 @@ export class UserAuthService {
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
     private readonly dataSource: DataSource,
-  ) { }
+  ) {}
 
   // ─── Register ─────────────────────────────────────────────────────────────
 
@@ -256,11 +256,15 @@ export class UserAuthService {
   }
 
   private getAccessTokenSecret(): string {
-    return this.configService.getOrThrow<string>('JWT_ACCESS_TOKEN_SECRET_USER');
+    return this.configService.getOrThrow<string>(
+      'JWT_ACCESS_TOKEN_SECRET_USER',
+    );
   }
 
   private getRefreshTokenSecret(): string {
-    return this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET_USER');
+    return this.configService.getOrThrow<string>(
+      'JWT_REFRESH_TOKEN_SECRET_USER',
+    );
   }
 
   private serializeUser(user: User) {

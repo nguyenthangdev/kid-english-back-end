@@ -16,20 +16,14 @@ import { AuthService } from './auth.service';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
 import { ChangeAdminPasswordDto } from './dto/change-admin-password.dto';
-import { AdminAuthGuard } from './guards/admin-auth.guard';
-import { LoginRateLimitGuard } from './guards/login-rate-limit.guard';
+import { AdminAuthGuard } from '../common/guards/admin-auth.guard';
+import { LoginRateLimitGuard } from '../common/guards/login-rate-limit.guard';
 import {
   getAuthCookieOptions,
   parseCookies,
 } from '../common/utils/cookie.util';
-import type { AdminRequest } from './types/admin-request.type';
-
-type UploadedAvatarFile = {
-  originalname: string;
-  mimetype: string;
-  buffer: Buffer;
-  size: number;
-};
+import type { AdminRequest } from '../common/types/admin-request.type';
+import { type UploadedImageFile } from '../common/types/upload.type';
 
 @Controller('admin')
 export class AuthController {
@@ -149,7 +143,7 @@ export class AuthController {
   @UseInterceptors(FileInterceptor('avatar'))
   async uploadAvatar(
     @Req() request: AdminRequest,
-    @UploadedFile() avatar: UploadedAvatarFile,
+    @UploadedFile() avatar: UploadedImageFile,
   ) {
     const result = await this.authService.uploadAdminAvatar(
       request.accountAdmin?.id ?? '',
