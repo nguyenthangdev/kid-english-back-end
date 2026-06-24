@@ -13,7 +13,7 @@ import {
   ApiUnauthorizedResponse,
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
-import { AdminAuthGuard } from '../auth/guards/admin-auth.guard';
+import { AdminAuthGuard } from '../common/guards/admin-auth.guard';
 import { AdminHomeService } from './admin-home.service';
 import { AdminDashboardResponseDto } from './dto/admin-dashboard-response.dto';
 

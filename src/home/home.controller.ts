@@ -7,9 +7,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { HomeService } from './home.service';
-import { JwtUserAuthGuard } from '../auth/guards/jwt-user-auth.guard';
+import { JwtUserAuthGuard } from '../common/guards/jwt-user-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import type { AuthenticatedUser } from '../auth/types/user-request.type';
+import type { AuthenticatedUser } from '../common/types/user-request.type';
 
 @ApiTags('Home')
 @ApiBearerAuth('access-token')
