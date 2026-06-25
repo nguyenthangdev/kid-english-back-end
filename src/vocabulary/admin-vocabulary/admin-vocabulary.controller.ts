@@ -59,8 +59,8 @@ export class AdminVocabularyController {
   @Post('upload-image')
   @UseInterceptors(FileInterceptor('image'))
   @ApiOperation({ summary: 'Upload vocabulary image' })
-  async uploadImage(@UploadedFile() file: UploadedImageFile) {
-    const imageUrl = await this.vocabularyService.uploadImage(file);
+  uploadImage(@UploadedFile() file: UploadedImageFile) {
+    const imageUrl = this.vocabularyService.uploadImage(file);
     return {
       statusCode: 200,
       message: 'Tải ảnh thành công',
