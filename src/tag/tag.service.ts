@@ -77,7 +77,7 @@ export class TagService {
       }
     }
     const items = await query
-      .orderBy('tag.createdAt', 'DESC')
+      .orderBy('tag.updatedAt', 'DESC')
       .take(limit + 1)
       .getMany();
 

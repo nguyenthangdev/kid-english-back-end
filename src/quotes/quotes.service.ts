@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { Quote } from './entities/quote.entity';
@@ -8,6 +8,7 @@ import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { QuoteQueryDto } from './dto/quote-query.dto';
 import { CursorPaginatedResult } from '../common/types/pagination.type';
+import { removeAccents } from '../common/utils/string.util';
 
 @Injectable()
 export class QuotesService {
@@ -24,15 +25,15 @@ export class QuotesService {
   async listQuotes(
     query: QuoteQueryDto,
   ): Promise<CursorPaginatedResult<Quote>> {
-    const { tagId, cursor, limit = 20 } = query;
-    const cacheKey = `${this.CACHE_PREFIX}:${tagId ?? 'all'}:${cursor ?? 'start'}:${limit}`;
+    const { tagId, keyword, cursor, limit = 20 } = query;
+    // const cacheKey = `${this.CACHE_PREFIX}:${tagId ?? 'all'}:${cursor ?? 'start'}:${limit}`;
 
-    const cached =
-      await this.cacheManager.get<CursorPaginatedResult<Quote>>(cacheKey);
-    if (cached) {
-      this.logger.debug(`Cache hit: ${cacheKey}`);
-      return cached;
-    }
+    // const cached =
+    //   await this.cacheManager.get<CursorPaginatedResult<Quote>>(cacheKey);
+    // if (cached) {
+    //   this.logger.debug(`Cache hit: ${cacheKey}`);
+    //   return cached;
+    // }
 
     const qb = this.quoteRepository
       .createQueryBuilder('quote')
@@ -41,6 +42,26 @@ export class QuotesService {
 
     if (tagId) {
       qb.andWhere('quote.tagId = :tagId', { tagId });
+    }
+
+    if (keyword) {
+      const cleanKeyword = keyword.trim();
+      const unaccentedKeyword = removeAccents(cleanKeyword).toLowerCase();
+
+      qb.andWhere(
+        new Brackets((qbInner) => {
+          qbInner
+            .where('quote.contentEn ILIKE :rawKey', {
+              rawKey: `%${cleanKeyword}%`,
+            })
+            .orWhere('quote.contentVn ILIKE :rawKey', {
+              rawKey: `%${cleanKeyword}%`,
+            })
+            .orWhere('quote.author ILIKE :rawKey', {
+              rawKey: `%${cleanKeyword}%`,
+            });
+        }),
+      );
     }
 
     if (cursor) {
@@ -56,7 +77,7 @@ export class QuotesService {
     }
 
     const items = await qb
-      .orderBy('quote.createdAt', 'DESC')
+      .orderBy('quote.updatedAt', 'DESC')
       .take(limit + 1)
       .getMany();
 
@@ -65,7 +86,7 @@ export class QuotesService {
     const nextCursor = hasMore ? (data[data.length - 1]?.id ?? null) : null;
 
     const result: CursorPaginatedResult<Quote> = { data, nextCursor, hasMore };
-    await this.cacheManager.set(cacheKey, result, 3600000);
+    // await this.cacheManager.set(cacheKey, result, 3600000);
     return result;
   }
 
@@ -90,6 +111,9 @@ export class QuotesService {
   async update(id: string, dto: UpdateQuoteDto): Promise<Quote> {
     const quote = await this.findById(id);
     Object.assign(quote, dto);
+    if (dto.tagId) {
+      quote.tag = { id: dto.tagId } as any;
+    }
     const updated = await this.quoteRepository.save(quote);
     this.logger.log(`Updated quote: ${updated.id}`);
     return updated;

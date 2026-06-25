@@ -8,7 +8,7 @@ import helmet from 'helmet';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import { config } from 'process';
-
+process.env.TZ = 'UTC';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 

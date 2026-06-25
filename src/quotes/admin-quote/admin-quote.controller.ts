@@ -8,17 +8,27 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  Get,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { QuotesService } from '../quotes.service';
 import { CreateQuoteDto } from '../dto/create-quote.dto';
 import { UpdateQuoteDto } from '../dto/update-quote.dto';
+import { QuoteQueryDto } from '../dto/quote-query.dto';
 
 @ApiTags('Admin — Quotes')
 @ApiBearerAuth('access-token')
 @Controller('admin/quotes')
 export class AdminQuoteController {
   constructor(private readonly quotesService: QuotesService) {}
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get list of vocabularies (Cursor Pagination)' })
+  findAll(@Query() query: QuoteQueryDto) {
+    return this.quotesService.listQuotes(query);
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
