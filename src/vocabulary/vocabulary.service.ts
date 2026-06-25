@@ -62,13 +62,6 @@ export class VocabularyService {
     //   this.logger.debug(`Cache hit: ${cacheKey}`);
     //   return cached;
     // }
-
-    // const cached =
-    //   await this.cacheManager.get<CursorPaginatedResult<Vocabulary>>(cacheKey);
-    // if (cached) {
-    //   this.logger.debug(`Cache hit: ${cacheKey}`);
-    //   return cached;
-    // }
     const qb = this.vocabularyRepository
       .createQueryBuilder('vocab')
       // FIX OVERFETCHING: Chỉ lấy những trường UI thực sự cần từ bảng Tag
@@ -149,7 +142,7 @@ export class VocabularyService {
 
     // Luôn sắp xếp bằng 2 cột tương ứng với logic Where ở trên
     const items = await qb
-      .orderBy('vocab.createdAt', 'DESC')
+      .orderBy('vocab.updatedAt', 'DESC')
       .addOrderBy('vocab.id', 'DESC')
       .take(limit + 1)
       .getMany();
@@ -201,14 +194,16 @@ export class VocabularyService {
 
   async update(id: string, dto: UpdateVocabularyDto): Promise<Vocabulary> {
     const vocab = await this.findById(id);
-
     // 1. Cập nhật dữ liệu mới (dto) đè lên dữ liệu cũ (vocab)
     Object.assign(vocab, dto);
-
+    if (dto.tagId) {
+      vocab.tag = { id: dto.tagId } as any;
+    }
     // 2. TÍNH TOÁN LẠI searchText
     // Lưu ý: Phải dùng vocab.word và vocab.meaning (dữ liệu sau khi gộp)
     const rawText = `${vocab.word} ${vocab.meaning}`;
     vocab.searchText = removeAccents(rawText).toLowerCase();
+    console.log('vocab after: ', vocab);
 
     const updated = await this.vocabularyRepository.save(vocab);
     // await this.clearCaches();
