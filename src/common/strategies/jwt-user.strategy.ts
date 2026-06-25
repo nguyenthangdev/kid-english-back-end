@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { JwtPayload } from '../types/jwt.type';
 import { AuthenticatedUser } from '../types/user-request.type';
+import { Request } from 'express';
 
 /** Allowed role codes for the user-facing app */
 const USER_ALLOWED_ROLES = new Set(['STUDENT', 'TEACHER']);
@@ -19,7 +20,13 @@ export class JwtUserStrategy extends PassportStrategy(Strategy, 'jwt-user') {
     private readonly usersRepository: Repository<User>,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request: Request) => {
+          const token = request?.cookies?.['user_accessToken'];
+          return token || null;
+        },
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>(
         'JWT_ACCESS_TOKEN_SECRET_USER',
