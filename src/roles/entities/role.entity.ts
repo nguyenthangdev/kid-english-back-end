@@ -28,4 +28,9 @@ export class Role extends BaseEntity {
 
   @OneToMany(() => User, (user) => user.role)
   users: User[];
+
+  userCount?: number;
+
+  @Column({ name: 'search_text', type: 'text', nullable: true })
+  searchText: string;
 }

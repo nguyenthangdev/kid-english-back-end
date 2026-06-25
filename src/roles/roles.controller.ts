@@ -9,22 +9,24 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { RoleQueryDto } from './dto/role-query.dto';
 
 @ApiTags('Roles')
 @ApiBearerAuth('access-token')
-@Controller('roles')
+@Controller('admin/roles')
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Get()
   @ApiOperation({ summary: 'List all active roles' })
-  findAll() {
-    return this.rolesService.findAll();
+  findAll(@Query() query: RoleQueryDto) {
+    return this.rolesService.findAll(query);
   }
 
   @Get(':id')
