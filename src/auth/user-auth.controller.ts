@@ -39,18 +39,25 @@ import type { AuthenticatedUser } from '../common/types/user-request.type';
 export class UserAuthController {
   constructor(private readonly userAuthService: UserAuthService) {}
 
-  // ─── Register ─────────────────────────────────────────────────────────────
-
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new user account (role: STUDENT)' })
   @ApiCreatedResponse({ description: 'Registration successful' })
   @ApiConflictResponse({ description: 'Email already exists' })
-  register(@Body() dto: RegisterUserDto) {
-    return this.userAuthService.register(dto);
+  async register(@Body() dto: RegisterUserDto) {
+    const result = await this.userAuthService.register(dto);
+    if (!result.isSuccess) {
+      return {
+        code: result.code,
+        message: result.message,
+      };
+    }
+    return {
+      code: result.code,
+      message: result.message,
+      user: result.user,
+    };
   }
-
-  // ─── Login ────────────────────────────────────────────────────────────────
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -97,8 +104,6 @@ export class UserAuthController {
       role: result.role,
     };
   }
-
-  // ─── Refresh Token ────────────────────────────────────────────────────────
 
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
@@ -152,8 +157,6 @@ export class UserAuthController {
     };
   }
 
-  // ─── Logout ───────────────────────────────────────────────────────────────
-
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout — clears HttpOnly cookies' })
@@ -162,8 +165,6 @@ export class UserAuthController {
     res.clearCookie('user_refreshToken', getAuthCookieOptions('30d'));
     return { code: 200, message: 'Đăng xuất thành công!' };
   }
-
-  // ─── Me ───────────────────────────────────────────────────────────────────
 
   @Get('me')
   @HttpCode(HttpStatus.OK)

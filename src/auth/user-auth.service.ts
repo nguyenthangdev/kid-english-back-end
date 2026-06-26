@@ -38,15 +38,17 @@ export class UserAuthService {
     private readonly dataSource: DataSource,
   ) {}
 
-  // ─── Register ─────────────────────────────────────────────────────────────
-
   async register(dto: RegisterUserDto) {
     // 1. Kiểm tra Email (Fail-fast)
     const existing = await this.usersRepository.findOne({
       where: { email: dto.email, isDeleted: false },
     });
     if (existing) {
-      throw new ConflictException('Email đã được sử dụng!');
+      return {
+        isSuccess: false,
+        code: 409,
+        message: 'Email đã được sử dụng. Vui lòng chọn email khác!',
+      };
     }
 
     const role = await this.findRoleByCode(DEFAULT_USER_ROLE);
@@ -94,8 +96,9 @@ export class UserAuthService {
       );
 
       return {
+        code: 201,
         isSuccess: true,
-        message: 'Đăng ký thành công!',
+        message: 'Đăng ký thành công. Vui lòng đăng nhập!',
         user: this.serializeUser(savedUser),
       };
     } catch (error) {
@@ -111,8 +114,6 @@ export class UserAuthService {
       await queryRunner.release();
     }
   }
-
-  // ─── Login ────────────────────────────────────────────────────────────────
 
   async login(dto: LoginUserDto) {
     const user = await this.usersRepository.findOne({
@@ -169,8 +170,6 @@ export class UserAuthService {
     };
   }
 
-  // ─── Refresh Token ────────────────────────────────────────────────────────
-
   async refreshToken(token: string) {
     const decoded = await this.verifyRefreshToken(token);
     const user = await this.findActiveUserById(decoded.accountId);
@@ -192,7 +191,6 @@ export class UserAuthService {
     return { isSuccess: true, newAccessToken, newRefreshToken };
   }
 
-  // ─── Me ───────────────────────────────────────────────────────────────────
   async getMe(userId: string) {
     const user = await this.usersRepository.findOne({
       where: { id: userId, isDeleted: false, isActive: true },
@@ -206,7 +204,6 @@ export class UserAuthService {
       role: this.serializeRole(user.role),
     };
   }
-  // ─── Private helpers ──────────────────────────────────────────────────────
   private async findRoleByCode(code: string): Promise<Role> {
     const role = await this.rolesRepository.findOne({
       where: { code, isDeleted: false },
