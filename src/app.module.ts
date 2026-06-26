@@ -19,6 +19,7 @@ import jwtConfig from './config/jwt.config';
 import { StorageModule } from './storage/storage.module';
 import KeyvRedis from '@keyv/redis';
 import { RolesGuard } from './common/guards/roles.guard';
+import { PermissionsModule } from './permissions/permissions.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     VocabularyModule,
     QuotesModule,
     HomeModule,
+    PermissionsModule,
   ],
   controllers: [AppController],
   providers: [

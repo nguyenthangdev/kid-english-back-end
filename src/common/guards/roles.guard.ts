@@ -10,7 +10,7 @@ import {
   PERMISSIONS_KEY,
   RequiredPermission,
 } from '../decorators/permissions.decorator';
-import { Permission } from '../../roles/entities/permission.entity';
+import { Permission } from '../../permissions/entities/permission.entity';
 
 interface RequestUser {
   id: string;

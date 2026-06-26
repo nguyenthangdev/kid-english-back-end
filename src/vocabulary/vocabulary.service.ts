@@ -50,7 +50,6 @@ export class VocabularyService {
   ): Promise<CursorPaginatedResult<Vocabulary>> {
     const { tagId, keyword, cursor, limit = 10 } = query;
     // const cacheKey = `${this.CACHE_PREFIX}:${tagId ?? 'all'}:${cursor ?? 'start'}:${limit}`;
-    // const { tagId, cursor, limit = 20 } = query;
 
     // 1. Nhúng Version vào Cache Key
     // const version = await this.getCacheVersion();
@@ -64,7 +63,6 @@ export class VocabularyService {
     // }
     const qb = this.vocabularyRepository
       .createQueryBuilder('vocab')
-      // FIX OVERFETCHING: Chỉ lấy những trường UI thực sự cần từ bảng Tag
       .leftJoin('vocab.tag', 'tag')
       .addSelect(['tag.id', 'tag.name', 'tag.colorCode', 'tag.slug'])
       .where('vocab.isDeleted = :isDeleted', { isDeleted: false });
@@ -73,45 +71,12 @@ export class VocabularyService {
       qb.andWhere('vocab.tagId = :tagId', { tagId });
     }
 
-    // if (keyword) {
-    //   const cleanKeyword = keyword.trim();
-    //   const slugKeyword = convertToSlug(cleanKeyword);
-    //   const unaccentedKeyword = removeAccents(cleanKeyword);
-    //   console.log('cleanKeyword: ', cleanKeyword);
-    //   console.log('slugKeyword: ', slugKeyword);
-    //   console.log('unaccentedKeyword: ', unaccentedKeyword);
-    //   // Bắt buộc dùng Brackets để bọc các khối OR lại (chống lỗi logic SQL: A AND (B OR C OR D))
-    //   qb.andWhere(
-    //     new Brackets((qbInner) => {
-    //       qbInner
-    //         // 1. Tìm theo từ khóa gốc
-    //         .where('vocab.word ILIKE :clean', { clean: `%${cleanKeyword}%` })
-    //         .orWhere('vocab.meaning ILIKE :clean', {
-    //           clean: `%${cleanKeyword}%`,
-    //         })
-
-    //         // 2. Tìm theo từ khóa đã bỏ dấu tiếng Việt
-    //         .orWhere('vocab.word ILIKE :unaccented', {
-    //           unaccented: `%${unaccentedKeyword}%`,
-    //         })
-    //         .orWhere('vocab.meaning ILIKE :unaccented', {
-    //           unaccented: `%${unaccentedKeyword}%`,
-    //         })
-
-    //         // 3. Tìm theo định dạng slug (gạch nối)
-    //         .orWhere('vocab.word ILIKE :slug', { slug: `%${slugKeyword}%` })
-    //         .orWhere('vocab.meaning ILIKE :slug', { slug: `%${slugKeyword}%` });
-    //     }),
-    //   );
-    // }
     if (keyword) {
-      // Gọt sạch dấu và in thường chữ của user gõ (VD: user gõ "quA cAm" -> "qua cam")
       const unaccentedKeyword = removeAccents(keyword).toLowerCase();
 
       qb.andWhere(
         new Brackets((qbInner) => {
           qbInner
-            // 1. Vẫn tìm ở 2 cột gốc (đề phòng user gõ đúng 100% có dấu)
             .where('vocab.word ILIKE :rawKey', {
               rawKey: `%${keyword.trim()}%`,
             })
@@ -119,7 +84,6 @@ export class VocabularyService {
               rawKey: `%${keyword.trim()}%`,
             })
 
-            // 2. Tìm ở cột searchText đã gọt dấu
             .orWhere('vocab.searchText ILIKE :cleanKey', {
               cleanKey: `%${unaccentedKeyword}%`,
             });
@@ -203,7 +167,6 @@ export class VocabularyService {
     // Lưu ý: Phải dùng vocab.word và vocab.meaning (dữ liệu sau khi gộp)
     const rawText = `${vocab.word} ${vocab.meaning}`;
     vocab.searchText = removeAccents(rawText).toLowerCase();
-    console.log('vocab after: ', vocab);
 
     const updated = await this.vocabularyRepository.save(vocab);
     // await this.clearCaches();

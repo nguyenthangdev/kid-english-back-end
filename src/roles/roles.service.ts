@@ -28,18 +28,18 @@ export class RolesService {
 
     const qb = this.roleRepository
       .createQueryBuilder('role')
+      .leftJoinAndSelect('role.permissions', 'permission')
       .where('role.isDeleted = :isDeleted', { isDeleted: false });
 
     if (keyword) {
       const cleanKeyword = keyword.trim();
-      const unaccentedKeyword = removeAccents(cleanKeyword).toLowerCase(); // Gọt dấu từ khóa
+      const unaccentedKeyword = removeAccents(cleanKeyword).toLowerCase();
 
       qb.andWhere(
         new Brackets((qbInner) => {
           qbInner
             .where('role.name ILIKE :key', { key: `%${cleanKeyword}%` })
             .orWhere('role.code ILIKE :key', { key: `%${cleanKeyword}%` })
-            // Tìm thêm trong cột searchText bằng từ khóa đã gọt dấu
             .orWhere('role.searchText ILIKE :cleanKey', {
               cleanKey: `%${unaccentedKeyword}%`,
             });
@@ -130,16 +130,27 @@ export class RolesService {
 
   async update(id: string, updateRoleDto: UpdateRoleDto): Promise<Role> {
     const role = await this.findById(id);
+
+    if (
+      updateRoleDto.version !== undefined &&
+      Number(updateRoleDto.version) !== role.version
+    ) {
+      throw new ConflictException(
+        'Dữ liệu nhóm quyền này vừa được một quản trị viên khác cập nhật. Vui lòng tải lại trang để xem thay đổi mới nhất!',
+      );
+    }
+
+    delete updateRoleDto.version;
     if (role.code === 'ADMIN') {
       throw new ForbiddenException(
         'Không được phép chỉnh sửa nhóm quyền ADMIN gốc.',
       );
     }
 
-    // 3. Chặn việc đổi một Role bình thường thành ADMIN (dựa vào data DTO gửi lên)
     if (updateRoleDto.code && updateRoleDto.code.toUpperCase() === 'ADMIN') {
       throw new ForbiddenException('Không được phép đổi mã quyền thành ADMIN.');
     }
+
     if (updateRoleDto.code && updateRoleDto.code !== role.code) {
       const existing = await this.roleRepository.exists({
         where: { code: updateRoleDto.code },
@@ -153,9 +164,18 @@ export class RolesService {
 
     Object.assign(role, updateRoleDto);
     role.searchText = removeAccents(role.name).toLowerCase();
-    const updated = await this.roleRepository.save(role);
-    this.logger.log(`Updated role: ${updated.code}`);
-    return updated;
+    try {
+      const updated = await this.roleRepository.save(role);
+      this.logger.log(`Updated role: ${updated.code}`);
+      return updated;
+    } catch (error: any) {
+      if (error.name === 'OptimisticLockVersionMismatchError') {
+        throw new ConflictException(
+          'Dữ liệu nhóm quyền này vừa được một quản trị viên khác cập nhật. Vui lòng tải lại trang để xem thay đổi mới nhất!',
+        );
+      }
+      throw error;
+    }
   }
 
   async softDelete(id: string): Promise<void> {

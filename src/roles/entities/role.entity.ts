@@ -1,6 +1,13 @@
-import { Entity, Column, ManyToMany, JoinTable, OneToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToMany,
+  JoinTable,
+  OneToMany,
+  VersionColumn,
+} from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
-import { Permission } from './permission.entity';
+import { Permission } from '../../permissions/entities/permission.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('roles')
@@ -33,4 +40,7 @@ export class Role extends BaseEntity {
 
   @Column({ name: 'search_text', type: 'text', nullable: true })
   searchText: string;
+
+  @VersionColumn()
+  version: number;
 }
