@@ -43,7 +43,6 @@ export class AuthService {
         role: true,
       },
     });
-
     if (!accountAdmin) {
       return {
         isSuccess: false,
@@ -75,13 +74,13 @@ export class AuthService {
 
     const role = await this.findRoleById(accountAdmin.roleId);
 
-    if (!this.isAdminRole(role)) {
-      return {
-        isSuccess: false,
-        code: 403,
-        message: 'Tài khoản không có quyền quản trị!',
-      };
-    }
+    // if (!this.isAdminRole(role)) {
+    //   return {
+    //     isSuccess: false,
+    //     code: 403,
+    //     message: 'Tài khoản không có quyền quản trị!',
+    //   };
+    // }
 
     const payload = this.createPayload(accountAdmin);
 
@@ -145,11 +144,11 @@ export class AuthService {
     );
     const role = await this.findRoleById(accountAdmin.roleId);
 
-    if (!this.isAdminRole(role)) {
-      throw new ForbiddenException({
-        message: 'Tài khoản không có quyền quản trị!',
-      });
-    }
+    // if (!this.isAdminRole(role)) {
+    //   throw new ForbiddenException({
+    //     message: 'Tài khoản không có quyền quản trị!',
+    //   });
+    // }
 
     return {
       accountAdmin: this.serializeAdmin(accountAdmin),
