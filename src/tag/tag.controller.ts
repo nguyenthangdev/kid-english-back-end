@@ -10,8 +10,10 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { AdminAuthGuard } from '../common/guards/admin-auth.guard';
 import { TagService } from './tag.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
@@ -19,6 +21,8 @@ import { TagType } from '../common/constants/enums';
 import { TagQueryDto } from './dto/tag-query.dto';
 
 @ApiTags('Tags')
+@ApiBearerAuth('access-token')
+@UseGuards(AdminAuthGuard)
 @Controller('admin/tags')
 export class TagController {
   constructor(private readonly tagsService: TagService) {}

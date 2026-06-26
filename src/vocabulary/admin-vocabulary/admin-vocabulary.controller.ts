@@ -10,8 +10,10 @@ import {
   HttpStatus,
   Get,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { AdminAuthGuard } from '../../common/guards/admin-auth.guard';
 import { VocabularyService } from '../vocabulary.service';
 import { CreateVocabularyDto } from '../dto/create-vocabulary.dto';
 import { UpdateVocabularyDto } from '../dto/update-vocabulary.dto';
@@ -22,6 +24,7 @@ import { type UploadedImageFile } from '../../common/types/upload.type';
 
 @ApiTags('Admin — Vocabularies')
 @ApiBearerAuth('access-token')
+@UseGuards(AdminAuthGuard)
 @Controller('admin/vocabularies')
 export class AdminVocabularyController {
   constructor(private readonly vocabularyService: VocabularyService) {}

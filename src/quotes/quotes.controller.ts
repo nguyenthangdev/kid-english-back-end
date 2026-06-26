@@ -6,12 +6,16 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtUserAuthGuard } from '../common/guards/jwt-user-auth.guard';
 import { QuotesService } from './quotes.service';
 import { QuoteQueryDto } from './dto/quote-query.dto';
 
 @ApiTags('Quotes')
+@ApiBearerAuth('access-token')
+@UseGuards(JwtUserAuthGuard)
 @Controller('quotes')
 export class QuotesController {
   constructor(private readonly quotesService: QuotesService) {}
