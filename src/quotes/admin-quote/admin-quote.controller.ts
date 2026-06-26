@@ -10,8 +10,10 @@ import {
   HttpStatus,
   Get,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { AdminAuthGuard } from '../../common/guards/admin-auth.guard';
 import { QuotesService } from '../quotes.service';
 import { CreateQuoteDto } from '../dto/create-quote.dto';
 import { UpdateQuoteDto } from '../dto/update-quote.dto';
@@ -19,6 +21,7 @@ import { QuoteQueryDto } from '../dto/quote-query.dto';
 
 @ApiTags('Admin — Quotes')
 @ApiBearerAuth('access-token')
+@UseGuards(AdminAuthGuard)
 @Controller('admin/quotes')
 export class AdminQuoteController {
   constructor(private readonly quotesService: QuotesService) {}

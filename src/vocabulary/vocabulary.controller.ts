@@ -6,11 +6,15 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtUserAuthGuard } from '../common/guards/jwt-user-auth.guard';
 import { VocabularyService } from './vocabulary.service';
 import { VocabularyQueryDto } from './dto/vocabulary-query.dto';
 @ApiTags('Vocabularies')
+@ApiBearerAuth('access-token')
+@UseGuards(JwtUserAuthGuard)
 @Controller('vocabularies')
 export class VocabularyController {
   constructor(private readonly vocabularyService: VocabularyService) {}

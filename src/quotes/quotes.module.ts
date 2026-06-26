@@ -7,10 +7,12 @@ import { QuotesService } from './quotes.service';
 import { QuotesController } from './quotes.controller';
 import { AdminQuoteController } from './admin-quote/admin-quote.controller';
 import { DailyQuoteService } from './daily-quote.service';
+import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Quote, DailyQuote]),
     ScheduleModule.forRoot(),
+    AuthModule,
   ],
   controllers: [QuotesController, AdminQuoteController],
   providers: [QuotesService, DailyQuoteService],
