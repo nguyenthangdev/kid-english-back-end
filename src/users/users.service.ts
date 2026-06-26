@@ -103,11 +103,24 @@ export class UsersService {
    * Update a user's own profile (fullName, avatarUrl).
    */
   async updateProfile(id: string, dto: UpdateUserDto): Promise<User> {
-    const user = await this.findById(id);
-    Object.assign(user, dto);
-    const updated = await this.userRepository.save(user);
-    this.logger.log(`Updated profile for user: ${updated.email}`);
-    return updated;
+    try {
+      const userExists = await this.userRepository.exists({
+        where: { id, isDeleted: false },
+      });
+      if (!userExists) {
+        throw new NotFoundException(`User with ID "${id}" not found`);
+      }
+      await this.userRepository.update(id, dto);
+      this.logger.log(`Updated profile for user ID: ${id}`);
+
+      return this.findById(id);
+    } catch (error) {
+      this.logger.error(
+        `Failed to update user ID ${id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
   }
 
   /**
@@ -115,9 +128,10 @@ export class UsersService {
    */
   async softDelete(id: string): Promise<void> {
     const user = await this.findById(id);
-    user.isDeleted = true;
-    user.isActive = false;
-    await this.userRepository.save(user);
+    await this.userRepository.update(id, {
+      isDeleted: true,
+      isActive: false,
+    });
     this.logger.log(`Soft-deleted user: ${user.email}`);
   }
 }
