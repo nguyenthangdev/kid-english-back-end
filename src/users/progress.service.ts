@@ -1,79 +1,170 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import {
+  Injectable,
+  Inject,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
+import { DataSource } from 'typeorm';
 import { UserVocabularyProgress } from './entities/user-vocabulary-progress.entity';
 import { UserStatistics } from './entities/user-statistics.entity';
-import { ProgressStatus } from '../common/constants/enums';
+import {
+  ProgressStatus,
+  ActiveType,
+  TargetType,
+} from '../common/constants/enums';
+import { Vocabulary } from '../vocabulary/entities/vocabulary.entity';
+import { GamificationService } from './gamification.service';
 
 @Injectable()
 export class ProgressService {
   private readonly logger = new Logger(ProgressService.name);
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly gamificationService: GamificationService,
+  ) {}
 
   /**
-   * Idempotent UPSERT: mark a vocabulary as learned for a user.
-   * Uses ON CONFLICT DO UPDATE to avoid duplicate entries.
-   * If already MASTERED, status is not downgraded.
+   * Cập nhật tiến độ học từ vựng của User.
+   * Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu:
+   * Nếu user thuộc từ mới -> tự động +1 vào bảng user_statistics.
    */
   async learnWord(
     userId: string,
     vocabularyId: string,
     status: ProgressStatus = ProgressStatus.LEARNING,
   ): Promise<UserVocabularyProgress> {
-    await this.dataSource.query(
-      `
-      INSERT INTO user_vocabulary_progress (id, user_id, vocabulary_id, status, created_at, updated_at)
-      VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())
-      ON CONFLICT ON CONSTRAINT "UQ_USER_VOCABULARY"
-      DO UPDATE SET
-        status = CASE
-          WHEN user_vocabulary_progress.status = 'MASTERED' THEN 'MASTERED'
-          ELSE EXCLUDED.status
-        END,
-        updated_at = NOW()
-      `,
-      [userId, vocabularyId, status],
-    );
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    const result = await this.dataSource
-      .getRepository(UserVocabularyProgress)
-      .findOne({ where: { userId, vocabularyId } });
+    try {
+      // 1. Tìm bản ghi progress hiện tại
+      // trong trường hợp user spam click nút "Đã thuộc" liên tục)
+      let progress = await queryRunner.manager.findOne(UserVocabularyProgress, {
+        where: { userId, vocabularyId },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    this.logger.log(
-      `Progress updated for user ${userId}, vocab ${vocabularyId} → ${result?.status}`,
-    );
+      let isNewlyMastered = false;
 
-    return result!;
+      if (!progress) {
+        // Chưa từng tương tác -> Tạo mới hoàn toàn
+        progress = queryRunner.manager.create(UserVocabularyProgress, {
+          userId,
+          vocabularyId,
+          status,
+        });
+
+        // Nếu vừa tạo mới mà đã đánh dấu là MASTERED luôn
+        if (status === ProgressStatus.MASTERED) {
+          isNewlyMastered = true;
+        }
+      } else {
+        // Đã từng học -> Chỉ update nếu trạng thái thay đổi từ LEARNING sang MASTERED.
+        // Cố tình bỏ qua nếu update từ MASTERED xuống LEARNING (Idempotent: không giáng cấp).
+        if (
+          progress.status === ProgressStatus.LEARNING &&
+          status === ProgressStatus.MASTERED
+        ) {
+          progress.status = ProgressStatus.MASTERED;
+          isNewlyMastered = true;
+        }
+      }
+
+      // Lưu cập nhật tiến độ chi tiết
+      await queryRunner.manager.save(UserVocabularyProgress, progress);
+
+      // 2. Đồng bộ Cache: Chỉ khi CÓ THÊM 1 TỪ ĐƯỢC MASTERED thì mới cộng dồn vào thống kê
+      if (isNewlyMastered) {
+        await queryRunner.manager.query(
+          `
+          INSERT INTO user_statistics (user_id, total_stars, total_words_learned, created_at, updated_at)
+          VALUES ($1, 0, 1, NOW(), NOW())
+          ON CONFLICT (user_id) DO UPDATE
+          SET total_words_learned = user_statistics.total_words_learned + 1,
+              updated_at = NOW()
+          `,
+          [userId],
+        );
+      }
+
+      await queryRunner.commitTransaction();
+
+      // Kích hoạt tính năng Gamification (tính Streak và cộng Sao)
+      await this.gamificationService
+        .recordActivity(
+          userId,
+          ActiveType.LEARN_FLASHCARD,
+          TargetType.VOCABULARY,
+          vocabularyId,
+        )
+        .catch((e) =>
+          this.logger.error('Failed to record gamification activity', e),
+        );
+
+      // 3. Clear dashboard cache so it updates immediately
+      await this.cacheManager.del(`dashboard:${userId}`);
+
+      this.logger.log(
+        `Progress updated for user ${userId}, vocab ${vocabularyId} → ${progress.status}`,
+      );
+
+      return progress;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`Failed to learn word for user ${userId}`, error);
+      throw new InternalServerErrorException(
+        'Failed to update vocabulary progress',
+      );
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   /**
-   * Get total mastered vs total for a user (for dashboard ratio).
+   * Lấy thống kê Dashboard nhanh chóng
    */
   async getProgressStats(userId: string): Promise<{
     mastered: number;
     total: number;
     ratio: number;
   }> {
-    const [{ mastered, total }] = await this.dataSource.query<
-      [{ mastered: string; total: string }]
-    >(
-      `
-      SELECT
-        COUNT(*) FILTER (WHERE status = 'MASTERED') AS mastered,
-        COUNT(*) AS total
-      FROM user_vocabulary_progress
-      WHERE user_id = $1
-      `,
-      [userId],
-    );
+    // Lấy số từ ĐÃ THUỘC cực nhanh với độ phức tạp O(1) từ bảng Thống kê
+    const stats = await this.dataSource.getRepository(UserStatistics).findOne({
+      where: { userId },
+      select: {
+        totalWordsLearned: true,
+      },
+    });
 
-    const masteredN = parseInt(mastered, 10);
-    const totalN = parseInt(total, 10);
+    const mastered = stats?.totalWordsLearned || 0;
+
+    // Đếm tổng số từ vựng hiện có trong hệ thống
+    const total = await this.dataSource
+      .getRepository(Vocabulary)
+      .count({ where: { isDeleted: false } });
+
     return {
-      mastered: masteredN,
-      total: totalN,
-      ratio: totalN > 0 ? Math.round((masteredN / totalN) * 100) : 0,
+      mastered,
+      total,
+      ratio: total > 0 ? Math.round((mastered / total) * 100) : 0,
     };
+  }
+
+  /**
+   * Get all mastered vocabulary IDs for a user
+   */
+  async getMasteredVocabularyIds(userId: string): Promise<string[]> {
+    const records = await this.dataSource
+      .getRepository(UserVocabularyProgress)
+      .find({
+        where: { userId, status: ProgressStatus.MASTERED },
+        select: { vocabularyId: true },
+      });
+    return records.map((r) => r.vocabularyId);
   }
 }

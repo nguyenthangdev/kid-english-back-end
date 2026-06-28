@@ -87,7 +87,16 @@ export class DailyQuoteService {
       relations: { quote: true },
     });
 
-    if (!daily?.quote) return null;
+    if (!daily?.quote) {
+      this.logger.log(
+        'No quote found for today. Triggering selectDailyQuote() manually.',
+      );
+      await this.selectDailyQuote();
+      const newlyCached = await this.cacheManager.get<Quote>(
+        DAILY_QUOTE_CACHE_KEY,
+      );
+      return newlyCached || null;
+    }
 
     await this.cacheManager.set(DAILY_QUOTE_CACHE_KEY, daily.quote, ONE_DAY_MS);
     return daily.quote;
