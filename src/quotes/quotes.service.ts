@@ -26,14 +26,14 @@ export class QuotesService {
     query: QuoteQueryDto,
   ): Promise<CursorPaginatedResult<Quote>> {
     const { tagId, keyword, cursor, limit = 20 } = query;
-    // const cacheKey = `${this.CACHE_PREFIX}:${tagId ?? 'all'}:${cursor ?? 'start'}:${limit}`;
+    const cacheKey = `${this.CACHE_PREFIX}:${tagId ?? 'all'}:${cursor ?? 'start'}:${limit}`;
 
-    // const cached =
-    //   await this.cacheManager.get<CursorPaginatedResult<Quote>>(cacheKey);
-    // if (cached) {
-    //   this.logger.debug(`Cache hit: ${cacheKey}`);
-    //   return cached;
-    // }
+    const cached =
+      await this.cacheManager.get<CursorPaginatedResult<Quote>>(cacheKey);
+    if (cached) {
+      this.logger.debug(`Cache hit: ${cacheKey}`);
+      return cached;
+    }
 
     const qb = this.quoteRepository
       .createQueryBuilder('quote')
