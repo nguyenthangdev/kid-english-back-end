@@ -33,3 +33,5 @@ export enum TargetType {
   TAG = 'TAG',
   NONE = 'NONE',
 }
+
+export const DEFAULT_USER_ROLE = 'STUDENT';

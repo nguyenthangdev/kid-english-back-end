@@ -25,7 +25,7 @@ import {
 import { UserAuthService } from './user-auth.service';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { LoginRateLimitGuard } from '../common/guards/login-rate-limit.guard';
+import { LoginRateLimitGuard } from '../common/guards/rate-limit-login.guard';
 import { JwtUserAuthGuard } from '../common/guards/jwt-user-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {

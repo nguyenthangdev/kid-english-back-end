@@ -4,7 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AuthService } from '../../auth/auth.service';
+import { AuthService } from '../../auth/admin-auth/admin-auth.service';
 import { AdminRequest } from '../types/admin-request.type';
 import { parseCookies } from '../utils/cookie.util';
 

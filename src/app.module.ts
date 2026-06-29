@@ -20,6 +20,7 @@ import { StorageModule } from './storage/storage.module';
 import KeyvRedis from '@keyv/redis';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PermissionsModule } from './permissions/permissions.module';
+import { ProfileModule } from './profile/profile.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { PermissionsModule } from './permissions/permissions.module';
     QuotesModule,
     HomeModule,
     PermissionsModule,
+    ProfileModule,
   ],
   controllers: [AppController],
   providers: [

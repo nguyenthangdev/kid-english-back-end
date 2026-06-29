@@ -52,9 +52,12 @@ export class RolesController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Soft-delete a role (Admin only)' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.rolesService.softDelete(id);
+  async remove(@Param('id', ParseUUIDPipe) id: string) {
+    await this.rolesService.softDelete(id);
+    return {
+      message: 'Xóa quyền thành công',
+    };
   }
 }
