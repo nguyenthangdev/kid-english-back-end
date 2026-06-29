@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, Not, In } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUserDto } from './dto/query-user.dto';
@@ -20,7 +20,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   /**
    * Find a user by ID. Used by JWT strategy and admin endpoints.
@@ -68,9 +68,9 @@ export class UsersService {
 
     const whereClause = search
       ? [
-          { fullName: ILike(`%${search}%`), isDeleted: false },
-          { email: ILike(`%${search}%`), isDeleted: false },
-        ]
+        { fullName: ILike(`%${search}%`), isDeleted: false },
+        { email: ILike(`%${search}%`), isDeleted: false },
+      ]
       : { isDeleted: false };
 
     const [data, total] = await this.userRepository.findAndCount({
@@ -133,5 +133,128 @@ export class UsersService {
       isActive: false,
     });
     this.logger.log(`Soft-deleted user: ${user.email}`);
+  }
+
+  // --- ADMIN ACCOUNT MANAGEMENT ---
+
+  async findAdministrators(query: QueryUserDto): Promise<PaginatedResult<User>> {
+    const { page = 1, limit = 10, search } = query;
+    const skip = (page - 1) * limit;
+
+    const baseWhere = { role: { code: Not('STUDENT') }, isDeleted: false };
+    const whereClause = search
+      ? [
+        { ...baseWhere, fullName: ILike(`%${search}%`) },
+        { ...baseWhere, email: ILike(`%${search}%`) },
+      ]
+      : baseWhere;
+
+    const [data, total] = await this.userRepository.findAndCount({
+      where: whereClause,
+      relations: { role: true },
+      order: { createdAt: 'DESC' },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isActive: true,
+        avatarUrl: true,
+        roleId: true,
+        createdAt: true,
+      },
+      skip,
+      take: limit,
+    });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async createAdmin(dto: any) {
+    const bcrypt = require('bcrypt');
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(dto.password, salt);
+
+    const newAdmin = this.userRepository.create({
+      fullName: dto.fullName,
+      email: dto.email,
+      password: hashedPassword,
+      roleId: dto.roleId,
+      isActive: dto.isActive,
+    });
+    return this.userRepository.save(newAdmin);
+  }
+
+  async updateAdmin(id: string, dto: any) {
+    const admin = await this.findById(id);
+
+    // Không cho phép update password trực tiếp qua endpoint này
+    if (dto.password) delete dto.password;
+
+    await this.userRepository.update(id, dto);
+    return this.findById(id);
+  }
+
+  // --- REGULAR USER MANAGEMENT ---
+
+  async findRegularUsers(query: QueryUserDto): Promise<PaginatedResult<any>> {
+    const { page = 1, limit = 10, search } = query;
+    const skip = (page - 1) * limit;
+
+    const baseWhere = { role: { code: In(['STUDENT', 'USER']) }, isDeleted: false };
+    const whereClause = search
+      ? [
+        { ...baseWhere, fullName: ILike(`%${search}%`) },
+        { ...baseWhere, email: ILike(`%${search}%`) },
+      ]
+      : baseWhere;
+
+    const [data, total] = await this.userRepository.findAndCount({
+      where: whereClause,
+      relations: { role: true, vocabularyProgresses: true, streak: true },
+      order: { createdAt: 'DESC' },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isActive: true,
+        avatarUrl: true,
+        roleId: true,
+        createdAt: true,
+      },
+      skip,
+      take: limit,
+    });
+
+    const mappedData = data.map((user: any) => ({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      isActive: user.isActive,
+      avatarUrl: user.avatarUrl,
+      roleId: user.roleId,
+      createdAt: user.createdAt,
+      role: user.role,
+      wordsLearned: user.vocabularyProgresses?.filter((p: any) => p.status === 'MASTERED')?.length || 0,
+      streak: user.streak?.currentStreak || 0,
+    }));
+
+    return {
+      data: mappedData,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async updateRegularUser(id: string, dto: any) {
+    await this.userRepository.update(id, dto);
+    return this.findById(id);
   }
 }

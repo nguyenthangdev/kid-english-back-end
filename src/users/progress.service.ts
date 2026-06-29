@@ -133,15 +133,21 @@ export class ProgressService {
     total: number;
     ratio: number;
   }> {
-    // Lấy số từ ĐÃ THUỘC cực nhanh với độ phức tạp O(1) từ bảng Thống kê
-    const stats = await this.dataSource.getRepository(UserStatistics).findOne({
-      where: { userId },
-      select: {
-        totalWordsLearned: true,
-      },
-    });
+    // Đếm số từ ĐÃ THUỘC THỰC TẾ và CHƯA BỊ XÓA (chính xác 100%)
+    const realMastered = await this.dataSource
+      .getRepository(UserVocabularyProgress)
+      .createQueryBuilder('uvp')
+      .innerJoin('uvp.vocabulary', 'vocab')
+      .where('uvp.user_id = :userId', { userId })
+      .andWhere('uvp.status = :status', { status: ProgressStatus.MASTERED })
+      .andWhere('vocab.is_deleted = false')
+      .getCount();
 
-    const mastered = stats?.totalWordsLearned || 0;
+    // Tự động sửa lỗi sai lệch dữ liệu trong bảng user_statistics
+    await this.dataSource.query(
+      'UPDATE user_statistics SET total_words_learned = $1 WHERE user_id = $2',
+      [realMastered, userId]
+    );
 
     // Đếm tổng số từ vựng hiện có trong hệ thống
     const total = await this.dataSource
@@ -149,9 +155,9 @@ export class ProgressService {
       .count({ where: { isDeleted: false } });
 
     return {
-      mastered,
+      mastered: realMastered,
       total,
-      ratio: total > 0 ? Math.round((mastered / total) * 100) : 0,
+      ratio: total > 0 ? Math.round((realMastered / total) * 100) : 0,
     };
   }
 
