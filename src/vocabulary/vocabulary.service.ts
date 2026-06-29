@@ -34,7 +34,7 @@ export class VocabularyService {
     private readonly cacheManager: Cache,
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   private async getCacheVersion(): Promise<number> {
     let version = await this.cacheManager.get<number>(this.CACHE_VERSION_KEY);
@@ -106,7 +106,7 @@ export class VocabularyService {
 
     // Luôn sắp xếp bằng 2 cột tương ứng với logic Where ở trên
     const items = await qb
-      .orderBy('vocab.updatedAt', 'DESC')
+      .orderBy('vocab.createdAt', 'DESC')
       .addOrderBy('vocab.id', 'DESC')
       .take(limit + 1)
       .getMany();
@@ -150,7 +150,6 @@ export class VocabularyService {
     });
 
     const saved = await this.vocabularyRepository.save(vocab);
-    // await this.clearCaches();
     // await this.invalidateCaches();
     this.logger.log(`Created vocabulary: ${saved.word}`);
     return saved;
@@ -168,8 +167,9 @@ export class VocabularyService {
     const rawText = `${vocab.word} ${vocab.meaning}`;
     vocab.searchText = removeAccents(rawText).toLowerCase();
 
-    const result = await this.vocabularyRepository.save(vocab);
-    // await this.clearCaches();
+    await this.vocabularyRepository.save(vocab);
+    const result = await this.findById(id); // Gọi lại findById để lấy đủ relation (Tag)
+
     // await this.invalidateCaches();
     this.logger.log(`Updated vocabulary: ${result.word}`);
     return result;
@@ -179,7 +179,7 @@ export class VocabularyService {
     const vocab = await this.findById(id);
     vocab.isDeleted = true;
     await this.vocabularyRepository.save(vocab);
-    // await this.clearCaches();
+    // await this.invalidateCaches(); // Bump version cache để xóa cache cũ
     this.logger.log(`Soft-deleted vocabulary: ${vocab.word}`);
   }
 
@@ -204,8 +204,9 @@ export class VocabularyService {
       this.configService.get<string>('SUPABASE_STORAGE_BUCKET') ||
       'kid-english';
 
-    return await this.storageService.uploadFile(bucket, path, file);
     // await this.invalidateCaches();
+    return await this.storageService.uploadFile(bucket, path, file);
+
   }
 
   private async invalidateCaches(): Promise<void> {
@@ -218,12 +219,4 @@ export class VocabularyService {
       `[Cache Invalidated] Đã nâng version namespace lên v${newVersion}. Hệ thống đồng bộ toàn cục.`,
     );
   }
-
-  // private async clearCaches(): Promise<void> {
-  //   // cache-manager v7 with Redis: iterate known prefixes
-  //   // In production consider using redis SCAN or tagged invalidation
-  //   this.logger.log(
-  //     'Vocabulary caches cleared (new writes invalidate via TTL)',
-  //   );
-  // }
 }

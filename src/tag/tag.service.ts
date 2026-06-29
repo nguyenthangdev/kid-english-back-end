@@ -27,7 +27,7 @@ export class TagService {
     private readonly tagRepository: Repository<Tag>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
-  ) {}
+  ) { }
 
   async getTags(queryDto: TagQueryDto): Promise<CursorPaginatedResult<Tag>> {
     // const cacheKey = type
@@ -68,16 +68,18 @@ export class TagService {
     if (cursor) {
       const cursorItem = await this.tagRepository.findOne({
         where: { id: cursor },
-        select: { createdAt: true },
+        select: { id: true, createdAt: true },
       });
       if (cursorItem) {
-        query.andWhere('tag.createdAt < :cursorDate', {
-          cursorDate: cursorItem.createdAt,
-        });
+        query.andWhere(
+          '(tag.createdAt < :cursorDate OR (tag.createdAt = :cursorDate AND tag.id < :cursorId))',
+          { cursorDate: cursorItem.createdAt, cursorId: cursorItem.id },
+        );
       }
     }
     const items = await query
-      .orderBy('tag.updatedAt', 'DESC')
+      .orderBy('tag.createdAt', 'DESC')
+      .addOrderBy('tag.id', 'DESC')
       .take(limit + 1)
       .getMany();
 

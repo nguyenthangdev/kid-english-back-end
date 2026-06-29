@@ -18,7 +18,6 @@ import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { StorageModule } from './storage/storage.module';
 import KeyvRedis from '@keyv/redis';
-import { RolesGuard } from './common/guards/roles.guard';
 import { PermissionsModule } from './permissions/permissions.module';
 import { ProfileModule } from './profile/profile.module';
 
@@ -95,10 +94,6 @@ import { ProfileModule } from './profile/profile.module';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
   ],
 })
-export class AppModule {}
+export class AppModule { }

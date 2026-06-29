@@ -2,6 +2,9 @@ export enum PermissionModule {
   VOCABULARY = 'VOCABULARY',
   QUOTE = 'QUOTE',
   USER = 'USER',
+  TAG = 'TAG',
+  ROLE = 'ROLE',
+  PERMISSION = 'PERMISSION'
 }
 
 export enum PermissionAction {

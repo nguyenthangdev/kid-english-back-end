@@ -14,6 +14,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AdminAuthGuard } from '../common/guards/admin-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
+import { PermissionModule, PermissionAction } from '../common/constants/enums';
 import { TagService } from './tag.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
@@ -22,13 +25,14 @@ import { TagQueryDto } from './dto/tag-query.dto';
 
 @ApiTags('Tags')
 @ApiBearerAuth('access-token')
-@UseGuards(AdminAuthGuard)
+@UseGuards(AdminAuthGuard, RolesGuard)
 @Controller('admin/tags')
 export class TagController {
-  constructor(private readonly tagsService: TagService) {}
+  constructor(private readonly tagsService: TagService) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Permissions({ module: PermissionModule.TAG, action: PermissionAction.CREATE })
   @ApiOperation({ summary: 'Create a new tag (Admin only)' })
   createTag(@Body() createTagDto: CreateTagDto) {
     return this.tagsService.createTag(createTagDto);
@@ -36,12 +40,17 @@ export class TagController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
+  @Permissions({ module: PermissionModule.TAG, action: PermissionAction.UPDATE })
   @ApiOperation({ summary: 'Update a tag (Admin only)' })
-  updateTag(
+  async updateTag(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateTagDto: UpdateTagDto,
   ) {
-    return this.tagsService.updateTag(id, updateTagDto);
+    const result = await this.tagsService.updateTag(id, updateTagDto);
+    return {
+      data: result,
+      message: 'Cập nhật thẻ thành công',
+    };
   }
 
   // @Get()
@@ -51,6 +60,7 @@ export class TagController {
   // }
   @Get()
   @HttpCode(HttpStatus.OK)
+  @Permissions({ module: PermissionModule.TAG, action: PermissionAction.READ })
   @ApiOperation({ summary: 'Get tags with cursor pagination and search' })
   getTags(@Query() queryDto: TagQueryDto) {
     return this.tagsService.getTags(queryDto);
@@ -58,6 +68,7 @@ export class TagController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
+  @Permissions({ module: PermissionModule.TAG, action: PermissionAction.DELETE })
   async deleteTag(@Param('id', ParseUUIDPipe) id: string) {
     await this.tagsService.deleteTag(id);
     return {

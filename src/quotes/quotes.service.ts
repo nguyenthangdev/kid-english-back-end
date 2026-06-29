@@ -20,20 +20,20 @@ export class QuotesService {
     private readonly quoteRepository: Repository<Quote>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
-  ) {}
+  ) { }
 
   async listQuotes(
     query: QuoteQueryDto,
   ): Promise<CursorPaginatedResult<Quote>> {
     const { tagId, keyword, cursor, limit = 20 } = query;
-    const cacheKey = `${this.CACHE_PREFIX}:${tagId ?? 'all'}:${cursor ?? 'start'}:${limit}`;
+    // const cacheKey = `${this.CACHE_PREFIX}:${tagId ?? 'all'}:${cursor ?? 'start'}:${limit}`;
 
-    const cached =
-      await this.cacheManager.get<CursorPaginatedResult<Quote>>(cacheKey);
-    if (cached) {
-      this.logger.debug(`Cache hit: ${cacheKey}`);
-      return cached;
-    }
+    // const cached =
+    //   await this.cacheManager.get<CursorPaginatedResult<Quote>>(cacheKey);
+    // if (cached) {
+    //   this.logger.debug(`Cache hit: ${cacheKey}`);
+    //   return cached;
+    // }
 
     const qb = this.quoteRepository
       .createQueryBuilder('quote')
@@ -67,17 +67,19 @@ export class QuotesService {
     if (cursor) {
       const cursorItem = await this.quoteRepository.findOne({
         where: { id: cursor },
-        select: { createdAt: true },
+        select: { id: true, createdAt: true },
       });
       if (cursorItem) {
-        qb.andWhere('quote.createdAt < :cursorDate', {
-          cursorDate: cursorItem.createdAt,
-        });
+        qb.andWhere(
+          '(quote.createdAt < :cursorDate OR (quote.createdAt = :cursorDate AND quote.id < :cursorId))',
+          { cursorDate: cursorItem.createdAt, cursorId: cursorItem.id },
+        );
       }
     }
 
     const items = await qb
-      .orderBy('quote.updatedAt', 'DESC')
+      .orderBy('quote.createdAt', 'DESC')
+      .addOrderBy('quote.id', 'DESC')
       .take(limit + 1)
       .getMany();
 
@@ -114,9 +116,11 @@ export class QuotesService {
     if (dto.tagId) {
       quote.tag = { id: dto.tagId } as any;
     }
-    const updated = await this.quoteRepository.save(quote);
-    this.logger.log(`Updated quote: ${updated.id}`);
-    return updated;
+    await this.quoteRepository.save(quote);
+    const result = await this.findById(id); // Lấy lại đủ relation (Tag)
+
+    this.logger.log(`Updated quote: ${result.id}`);
+    return result;
   }
 
   async softDelete(id: string): Promise<void> {

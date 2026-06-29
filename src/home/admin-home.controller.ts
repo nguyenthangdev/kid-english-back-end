@@ -14,6 +14,9 @@ import {
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { AdminAuthGuard } from '../common/guards/admin-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
+import { PermissionModule, PermissionAction } from '../common/constants/enums';
 import { AdminHomeService } from './admin-home.service';
 import { AdminDashboardResponseDto } from './dto/admin-dashboard-response.dto';
 
@@ -30,7 +33,7 @@ import { AdminDashboardResponseDto } from './dto/admin-dashboard-response.dto';
 @UseGuards(AdminAuthGuard)
 @Controller('home/admin')
 export class AdminHomeController {
-  constructor(private readonly adminHomeService: AdminHomeService) {}
+  constructor(private readonly adminHomeService: AdminHomeService) { }
 
   @Get('dashboard')
   @HttpCode(HttpStatus.OK)

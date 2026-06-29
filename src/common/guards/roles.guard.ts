@@ -27,7 +27,7 @@ interface RequestUser {
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
     const requiredPermissions = this.reflector.getAllAndOverride<
@@ -39,25 +39,25 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context
-      .switchToHttp()
-      .getRequest<Request & { user: RequestUser }>();
-    const user = request.user;
+    const request = context.switchToHttp().getRequest<any>();
 
-    if (!user?.role?.permissions) {
-      throw new ForbiddenException('Access denied: no role permissions found');
+    // Hỗ trợ cả AdminAuthGuard (request.accountAdminRole) và JwtAuthGuard (request.user.role)
+    const permissions =
+      request.accountAdminRole?.permissions || request.user?.role?.permissions;
+
+    if (!permissions) {
+      throw new ForbiddenException('Truy cập bị từ chối: không tìm thấy quyền hạn nào cho vai trò này.');
     }
 
     const userPermissionCodes = new Set(
-      user.role.permissions.map((p) => `${p.module}:${p.action}`),
+      permissions.map((p: Permission) => `${p.module}:${p.action}`),
     );
 
     const hasAll = requiredPermissions.every((required) =>
       userPermissionCodes.has(`${required.module}:${required.action}`),
     );
-
     if (!hasAll) {
-      throw new ForbiddenException('Access denied: insufficient permissions');
+      throw new ForbiddenException('Bạn không có quyền truy cập chức năng này');
     }
 
     return true;
