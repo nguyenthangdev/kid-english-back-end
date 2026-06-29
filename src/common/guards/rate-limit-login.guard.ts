@@ -1,11 +1,6 @@
 import { ConfigService } from '@nestjs/config';
-import {
-  CanActivate,
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { TooManyRequestsException } from '../exceptions/too-many-request.exception';
 
 // Khởi tạo một bộ nhớ Map lưu trữ: IP -> { số lần thử, thời gian bắt đầu }
 const rateLimitMap = new Map<string, { count: number; startTime: number }>();
@@ -41,13 +36,8 @@ export class LoginRateLimitGuard implements CanActivate {
     record.count += 1;
 
     if (record.count > MAX_ATTEMPTS) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          code: 429,
-          message: 'Bạn đã thử quá nhiều lần. Vui lòng quay lại sau 1 phút!',
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
+      throw new TooManyRequestsException(
+        'Bạn đã gửi quá nhiều yêu cầu, vui lòng thử lại sau',
       );
     }
 

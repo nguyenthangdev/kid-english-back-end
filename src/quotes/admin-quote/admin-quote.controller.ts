@@ -47,9 +47,12 @@ export class AdminQuoteController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Soft-delete a quote (Admin only)' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.quotesService.softDelete(id);
+  async remove(@Param('id', ParseUUIDPipe) id: string) {
+    await this.quotesService.softDelete(id);
+    return {
+      message: 'Xóa câu nói thành công',
+    };
   }
 }

@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   GoneException,
   Injectable,
@@ -9,17 +8,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
-import { Role } from '../roles/entities/role.entity';
-import { User } from '../users/entities/user.entity';
-import { StorageService } from '../storage/storage.service';
-import { LoginAdminDto } from './dto/login-admin.dto';
+import { Role } from '../../roles/entities/role.entity';
+import { User } from '../../users/entities/user.entity';
+import { LoginAdminDto } from '../dto/login-admin.dto';
 import { JwtService } from '@nestjs/jwt';
-import { JwtPayload } from '../common/types/jwt.type';
-import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
-import { ChangeAdminPasswordDto } from './dto/change-admin-password.dto';
-import { UploadedImageFile } from '../common/types/upload.type';
+import { JwtPayload } from '../../common/types/jwt.type';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +24,6 @@ export class AuthService {
     private readonly rolesRepository: Repository<Role>,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
-    private readonly storageService: StorageService,
   ) {}
 
   async loginAdmin(loginAdminDto: LoginAdminDto) {
@@ -43,13 +36,10 @@ export class AuthService {
         role: true,
       },
     });
-    if (!accountAdmin) {
-      return {
-        isSuccess: false,
-        code: 401,
-        message: 'Tài khoản hoặc mật khẩu không chính xác!',
-      };
-    }
+    if (!accountAdmin)
+      throw new UnauthorizedException(
+        'Tài khoản hoặc mật khẩu không chính xác',
+      );
 
     const isMatch = await bcrypt.compare(
       loginAdminDto.password,
@@ -57,30 +47,16 @@ export class AuthService {
     );
 
     if (!isMatch) {
-      return {
-        isSuccess: false,
-        code: 401,
-        message: 'Tài khoản hoặc mật khẩu không chính xác!',
-      };
+      throw new UnauthorizedException(
+        'Tài khoản hoặc mật khẩu không chính xác',
+      );
     }
 
     if (!accountAdmin.isActive) {
-      return {
-        isSuccess: false,
-        code: 403,
-        message: 'Tài khoản đã bị khóa!',
-      };
+      throw new ForbiddenException('Tài khoản đã bị khóa');
     }
 
     const role = await this.findRoleById(accountAdmin.roleId);
-
-    // if (!this.isAdminRole(role)) {
-    //   return {
-    //     isSuccess: false,
-    //     code: 403,
-    //     message: 'Tài khoản không có quyền quản trị!',
-    //   };
-    // }
 
     const payload = this.createPayload(accountAdmin);
 
@@ -95,7 +71,6 @@ export class AuthService {
     });
 
     return {
-      isSuccess: true,
       accessToken,
       refreshToken,
       accountAdmin: this.serializeAdmin(accountAdmin),
@@ -105,11 +80,7 @@ export class AuthService {
 
   async refreshTokenAdmin(refreshToken?: string) {
     if (!refreshToken) {
-      return {
-        isSuccess: false,
-        code: 401,
-        message: 'Không tồn tại refreshToken!',
-      };
+      throw new UnauthorizedException('Refresh token không hợp lệ');
     }
 
     const refreshTokenDecoded = await this.verifyRefreshToken(refreshToken);
@@ -130,7 +101,7 @@ export class AuthService {
       expiresIn: '14d',
     });
 
-    return { isSuccess: true, newAccessToken, newRefreshToken };
+    return { newAccessToken, newRefreshToken };
   }
 
   async validateAdminAccessToken(accessToken?: string) {
@@ -144,87 +115,8 @@ export class AuthService {
     );
     const role = await this.findRoleById(accountAdmin.roleId);
 
-    // if (!this.isAdminRole(role)) {
-    //   throw new ForbiddenException({
-    //     message: 'Tài khoản không có quyền quản trị!',
-    //   });
-    // }
-
     return {
       accountAdmin: this.serializeAdmin(accountAdmin),
-      role: this.serializeRole(role),
-    };
-  }
-
-  async updateAdminProfile(accountId: string, dto: UpdateAdminProfileDto) {
-    const accountAdmin = await this.findActiveAdminById(accountId);
-    accountAdmin.fullName = dto.fullName.trim();
-
-    const updated = await this.usersRepository.save(accountAdmin);
-    const role = await this.findRoleById(updated.roleId);
-
-    return {
-      accountAdmin: this.serializeAdmin(updated),
-      role: this.serializeRole(role),
-    };
-  }
-
-  async changeAdminPassword(accountId: string, dto: ChangeAdminPasswordDto) {
-    const accountAdmin = await this.findActiveAdminById(accountId);
-    const isMatch = await bcrypt.compare(
-      dto.currentPassword,
-      accountAdmin.password,
-    );
-
-    if (!isMatch) {
-      throw new UnauthorizedException({
-        code: 401,
-        message: 'Mật khẩu hiện tại không chính xác!',
-      });
-    }
-
-    accountAdmin.password = await bcrypt.hash(dto.newPassword, 10);
-    await this.usersRepository.save(accountAdmin);
-
-    return { isSuccess: true };
-  }
-
-  async uploadAdminAvatar(accountId: string, file?: UploadedImageFile) {
-    if (!file) {
-      throw new BadRequestException({
-        code: 400,
-        message: 'Vui lòng chọn ảnh đại diện!',
-      });
-    }
-
-    if (!file.mimetype.startsWith('image/')) {
-      throw new BadRequestException({
-        code: 400,
-        message: 'File tải lên phải là hình ảnh!',
-      });
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      throw new BadRequestException({
-        code: 400,
-        message: 'Ảnh đại diện không được vượt quá 2MB!',
-      });
-    }
-
-    const accountAdmin = await this.findActiveAdminById(accountId);
-    const extension = file.originalname.split('.').pop() || 'jpg';
-    const path = `admin-avatars/${accountId}/${randomUUID()}.${extension}`;
-    const bucket =
-      this.configService.get<string>('SUPABASE_STORAGE_BUCKET') ||
-      'kid-english';
-    const avatarUrl = await this.storageService.uploadFile(bucket, path, file);
-
-    accountAdmin.avatarUrl = avatarUrl;
-    const updated = await this.usersRepository.save(accountAdmin);
-    const role = await this.findRoleById(updated.roleId);
-
-    return {
-      accountAdmin: this.serializeAdmin(updated),
       role: this.serializeRole(role),
     };
   }
@@ -242,10 +134,7 @@ export class AuthService {
     });
 
     if (!accountAdmin) {
-      throw new NotFoundException({
-        code: 404,
-        message: 'Tài khoản không tồn tại!',
-      });
+      throw new NotFoundException('Tài khoản không tồn tại');
     }
 
     return accountAdmin;
@@ -263,10 +152,9 @@ export class AuthService {
     });
 
     if (!role) {
-      throw new ForbiddenException({
-        code: 403,
-        message: 'Không thể xác định quyền tài khoản!',
-      });
+      throw new NotFoundException(
+        'Nhóm quyền hiện tại của tài khoàn này không tồn tại hoặc bị khóa',
+      );
     }
 
     return role;
@@ -304,12 +192,14 @@ export class AuthService {
     const message = error instanceof Error ? error.message : '';
 
     if (message.includes('jwt expired')) {
-      throw new GoneException({ message: 'Cần refresh token mới!' });
+      throw new GoneException(
+        'refresh token đã hết hạn, cần refresh token mới!',
+      );
     }
 
-    throw new UnauthorizedException({
-      message: 'Token không hợp lệ, vui lòng đăng nhập lại!',
-    });
+    throw new UnauthorizedException(
+      'Token không hợp lệ, vui lòng đăng nhập lại!',
+    );
   }
 
   private getAccessTokenSecret() {
@@ -318,10 +208,6 @@ export class AuthService {
 
   private getRefreshTokenSecret() {
     return this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET_ADMIN');
-  }
-
-  private isAdminRole(role: Role) {
-    return role.code === 'ADMIN';
   }
 
   private serializeAdmin(accountAdmin: User) {

@@ -4,30 +4,28 @@ import { PassportModule } from '@nestjs/passport';
 import { Role } from '../roles/entities/role.entity';
 import { User } from '../users/entities/user.entity';
 
-// ── Admin auth ──────────────────────────────────────────────────────────────
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
+// Admin auth
+import { AuthController } from './admin-auth/admin-auth.controller';
+import { AuthService } from './admin-auth/admin-auth.service';
 import { AdminAuthGuard } from '../common/guards/admin-auth.guard';
-import { LoginRateLimitGuard } from '../common/guards/login-rate-limit.guard';
+import { LoginRateLimitGuard } from '../common/guards/rate-limit-login.guard';
 import { JwtModule } from '@nestjs/jwt';
 
-// ── User auth ───────────────────────────────────────────────────────────────
+// User auth
 import { UserAuthController } from './user-auth.controller';
 import { UserAuthService } from './user-auth.service';
 import { JwtUserStrategy } from '../common/strategies/jwt-user.strategy';
 import { JwtUserAuthGuard } from '../common/guards/jwt-user-auth.guard';
 
-// ── Shared ──────────────────────────────────────────────────────────────────
+// Shared
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { JwtStrategy } from '../common/strategies/jwt.strategy';
-import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Role]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({}),
-    StorageModule,
   ],
   controllers: [AuthController, UserAuthController],
   providers: [

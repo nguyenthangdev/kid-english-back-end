@@ -49,23 +49,30 @@ export class AdminVocabularyController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateVocabularyDto,
   ) {
-    return this.vocabularyService.update(id, dto);
+    const result = this.vocabularyService.update(id, dto);
+    return {
+      data: result,
+      message: 'Cập nhật từ vựng thành công',
+    };
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Soft-delete a vocabulary (Admin only)' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.vocabularyService.softDelete(id);
+  async remove(@Param('id', ParseUUIDPipe) id: string) {
+    await this.vocabularyService.softDelete(id);
+    return {
+      message: 'Xóa từ vựng thành công',
+    };
   }
 
   @Post('upload-image')
+  @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('image'))
   @ApiOperation({ summary: 'Upload vocabulary image' })
-  uploadImage(@UploadedFile() file: UploadedImageFile) {
-    const imageUrl = this.vocabularyService.uploadImage(file);
+  async uploadImage(@UploadedFile() file: UploadedImageFile) {
+    const imageUrl = await this.vocabularyService.uploadImage(file);
     return {
-      statusCode: 200,
       message: 'Tải ảnh thành công',
       data: { imageUrl },
     };

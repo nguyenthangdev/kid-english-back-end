@@ -57,8 +57,11 @@ export class TagController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  deleteTag(@Param('id', ParseUUIDPipe) id: string) {
-    return this.tagsService.deleteTag(id);
+  @HttpCode(HttpStatus.OK)
+  async deleteTag(@Param('id', ParseUUIDPipe) id: string) {
+    await this.tagsService.deleteTag(id);
+    return {
+      message: 'Xóa thẻ thành công',
+    };
   }
 }

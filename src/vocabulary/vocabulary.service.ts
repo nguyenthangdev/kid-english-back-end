@@ -168,11 +168,11 @@ export class VocabularyService {
     const rawText = `${vocab.word} ${vocab.meaning}`;
     vocab.searchText = removeAccents(rawText).toLowerCase();
 
-    const updated = await this.vocabularyRepository.save(vocab);
+    const result = await this.vocabularyRepository.save(vocab);
     // await this.clearCaches();
     // await this.invalidateCaches();
-    this.logger.log(`Updated vocabulary: ${updated.word}`);
-    return updated;
+    this.logger.log(`Updated vocabulary: ${result.word}`);
+    return result;
   }
 
   async softDelete(id: string): Promise<void> {
